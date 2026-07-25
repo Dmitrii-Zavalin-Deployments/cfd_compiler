@@ -1,0 +1,131 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "cfd_compiler_output_schema",
+  "type": "object",
+  "description": "Assembled bundle combining user input variables and compilation metadata results.",
+  "properties": {
+    "input": {
+      "type": "object",
+      "title": "cfd_compiler_input_schema",
+      "properties": {
+        "step_file_path": {
+          "type": "string",
+          "description": "Path to the raw CAD STEP geometry file."
+        },
+        "boundary_condition_mapping": {
+          "type": "array",
+          "description": "Mapping rules linking spatial domain surfaces to physical boundary conditions.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "location": {
+                "type": "string",
+                "enum": ["x_min", "x_max", "y_min", "y_max", "z_min", "z_max", "wall"]
+              },
+              "type": {
+                "type": "string",
+                "enum": ["no-slip", "free-slip", "inflow", "outflow", "pressure"]
+              },
+              "values": {
+                "type": "object",
+                "properties": {
+                  "u": { "type": "number" },
+                  "v": { "type": "number" },
+                  "w": { "type": "number" },
+                  "p": { "type": "number" }
+                }
+              }
+            },
+            "required": ["location", "type", "values"]
+          }
+        }
+      },
+      "required": ["step_file_path", "boundary_condition_mapping"]
+    },
+    "results": {
+      "type": "object",
+      "title": "cfd_compiler_results_schema",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["success", "failed"],
+          "description": "Execution status of the compilation gate."
+        },
+        "compiled_cells_count": {
+          "type": "integer",
+          "description": "Total discrete cell faces compiled into the solver payload."
+        },
+        "boundary_conditions": {
+          "type": "array",
+          "description": "Fully resolved and validated boundary conditions compiled for the N-S solver.",
+          "items": {
+            "type": "object",
+            "required": [
+              "location",
+              "type",
+              "values"
+            ],
+            "properties": {
+              "location": {
+                "enum": [
+                  "x_min",
+                  "x_max",
+                  "y_min",
+                  "y_max",
+                  "z_min",
+                  "z_max",
+                  "wall"
+                ]
+              },
+              "type": {
+                "enum": [
+                  "no-slip",
+                  "free-slip",
+                  "inflow",
+                  "outflow",
+                  "pressure"
+                ]
+              },
+              "values": {
+                "type": "object",
+                "properties": {
+                  "u": {
+                    "type": "number"
+                  },
+                  "v": {
+                    "type": "number"
+                  },
+                  "w": {
+                    "type": "number"
+                  },
+                  "p": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false,
+                "minProperties": 1
+              }
+            }
+          }
+        },
+        "artifacts_generated": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of diagnostic QA visualization files generated during execution."
+        }
+      },
+      "required": [
+        "status",
+        "compiled_cells_count",
+        "boundary_conditions",
+        "artifacts_generated"
+      ]
+    }
+  },
+  "required": [
+    "input",
+    "results"
+  ]
+}
