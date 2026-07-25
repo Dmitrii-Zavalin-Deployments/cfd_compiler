@@ -1,10 +1,10 @@
 # 📐 CFD Compiler
 
-## 🧩 CAD → Mesh → Voxelization Pipeline
-A high‑fidelity scientific CFD Compiler designed for CAD/STEP geometries,
-voxelization, CI‑optimized rendering, and simulation preprocessing.
+## 🧩 CAD → Spatial Location → Physical Boundary Pipeline
+A high‑fidelity scientific CFD compiler designed for CAD/STEP geometries, 
+spatial location mapping, physical boundary parsing, and solver preprocessing.
 
-### 🖼️ Pipeline Preview (STEP → Mesh → Voxel)
+### 🖼️ Pipeline Preview (STEP → Spatial Location → Physical Boundary)
 
 <table align="center" style="border: 1px solid white; border-collapse: collapse; background: transparent;">
   <tr>
@@ -15,13 +15,13 @@ voxelization, CI‑optimized rendering, and simulation preprocessing.
       &rarr;
     </td>
     <td style="border: 1px solid white; text-align: center; vertical-align: middle; padding: 0 8px; background: transparent;">
-      <img src="data/testing-input-output/mesh_snapshot.png" width="210" />
+      <img src="data/testing-input-output/spatial_location_map.png" width="210" />
     </td>
     <td style="border: 1px solid white; text-align: center; vertical-align: middle; padding: 0 12px; font-size: 32px; color: #666; background: transparent;">
       &rarr;
     </td>
     <td style="border: 1px solid white; text-align: center; vertical-align: middle; padding: 0 8px; background: transparent;">
-      <img src="data/testing-input-output/voxel_mask_verification.png" width="210" />
+      <img src="data/testing-input-output/physical_boundary_map.png" width="210" />
     </td>
   </tr>
 </table>
@@ -32,6 +32,12 @@ voxelization, CI‑optimized rendering, and simulation preprocessing.
 ---
 
 ### 🧮 Performance Audit:
+### Audit: 2026-07-25 19:15:54 UTC
+- **Branch:** `main`
+- **Status:** `failure`
+- **Run:** [Detailed Execution Logs](https://github.com/Dmitrii-Zavalin-Deployments/cfd_compiler/actions/runs/30171196607)
+- **CPU Load:** `4.6%`
+- **Memory Usage:** `1260/15989MB`
 ### Audit: 2026-07-25 18:46:39 UTC
 - **Branch:** `main`
 - **Status:** `success`
