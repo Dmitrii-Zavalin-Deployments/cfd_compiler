@@ -269,9 +269,10 @@ jobs:
           echo "--- Verifying Generated Output Structure ---"
           ls -l data/testing-input-output/cfd_compiler_output.json
           
-          # Verify that the universal png asset file has been successfully dumped
-          echo "--- Verifying Universal Mesh Snapshot Asset ---"
-          ls -l data/testing-input-output/mesh_snapshot.png
+          # Verify that both dual 3D diagnostic visual render assets have been successfully dumped
+          echo "--- Verifying Dual 3D Diagnostic Visual Render Assets ---"
+          ls -l data/testing-input-output/spatial_location_map.png
+          ls -l data/testing-input-output/physical_boundary_map.png
           
           # Print output summary for logs tracing
           head -n 30 data/testing-input-output/cfd_compiler_output.json
