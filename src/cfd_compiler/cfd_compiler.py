@@ -8,7 +8,7 @@ into validated, solver-ready output structures.
 from typing import Any, Dict, Optional
 
 
-def solve(input_data: Dict[str, Any], config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def solve(input_data: Dict[str, Any], _config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
     Executes top-to-bottom linear compilation from input schema to results schema.
     
