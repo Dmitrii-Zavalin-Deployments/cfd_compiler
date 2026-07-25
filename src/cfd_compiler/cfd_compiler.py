@@ -13,6 +13,7 @@ import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 # CAD Parsing standard
@@ -145,8 +146,8 @@ def solve(
 
 
 def _render_spatial_location_map(output_path: Path, bounds: Tuple[float, ...]) -> None:
-    """Renders Spatial Location Map (Model 1)."""
-    fig = plt.figure(figsize=(9, 7))
+    """Renders Spatial Location Map with color agenda legend (Model 1)."""
+    fig = plt.figure(figsize=(10, 7))
     ax = fig.add_subplot(111, projection="3d")
 
     # Render bounding faces and internal CAD wall with spatial location colors
@@ -157,8 +158,23 @@ def _render_spatial_location_map(output_path: Path, bounds: Tuple[float, ...]) -
     ax.set_ylabel("Y (mm)")
     ax.set_zlabel("Z (mm)")
 
+    # Color Agenda / Legend Construction
+    legend_patches = [
+        mpatches.Patch(color=color, label=f"{loc}")
+        for loc, color in SPATIAL_COLOR_MAP.items()
+    ]
+    ax.legend(
+        handles=legend_patches,
+        title="Spatial Location",
+        loc="center left",
+        bbox_to_anchor=(1.05, 0.5),
+        fontsize=9,
+        title_fontsize=10,
+        frameon=True
+    )
+
     plt.tight_layout()
-    plt.savefig(output_path, dpi=150)
+    plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -168,9 +184,9 @@ def _render_physical_boundary_map(
     location_to_type: Dict[str, str],
     location_to_values: Dict[str, Dict[str, float]]
 ) -> None:
-    """Renders Physical Boundary Map with dynamic velocity vector overlay (Model 2)."""
+    """Renders Physical Boundary Map with dynamic velocity vectors & color agenda legend (Model 2)."""
     xmin, xmax, ymin, ymax, zmin, zmax = bounds
-    fig = plt.figure(figsize=(9, 7))
+    fig = plt.figure(figsize=(10, 7))
     ax = fig.add_subplot(111, projection="3d")
 
     # Map face colors based on assigned physical types
@@ -192,7 +208,7 @@ def _render_physical_boundary_map(
             v = vals.get("v", 0.0)
             w = vals.get("w", 0.0)
 
-            # Compute anchor centroid for any boundary location
+            # Compute anchor centroid for boundary location
             cx, cy, cz = _get_face_centroid(loc, bounds)
 
             # Dynamic arrow scaling relative to velocity magnitude
@@ -210,8 +226,23 @@ def _render_physical_boundary_map(
     ax.set_ylabel("Y (mm)")
     ax.set_zlabel("Z (mm)")
 
+    # Color Agenda / Legend Construction
+    legend_patches = [
+        mpatches.Patch(color=color, label=f"{btype}")
+        for btype, color in PHYSICAL_COLOR_MAP.items()
+    ]
+    ax.legend(
+        handles=legend_patches,
+        title="Boundary Condition Type",
+        loc="center left",
+        bbox_to_anchor=(1.05, 0.5),
+        fontsize=9,
+        title_fontsize=10,
+        frameon=True
+    )
+
     plt.tight_layout()
-    plt.savefig(output_path, dpi=150)
+    plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
 
 
