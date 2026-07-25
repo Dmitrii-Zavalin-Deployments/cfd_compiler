@@ -239,7 +239,7 @@ jobs:
           # Run core execution module under verbose tool monitoring to record Peak Resident Set Size (RSS)
           /usr/bin/time -v xvfb-run --auto-servernum python src/main.py \
             --input_output_folder "${GITHUB_WORKSPACE}/data/testing-input-output/" \
-            --input_file_name "$STEP_FILE" \
+            --input_file_name "cfd_compiler_input.json" \
             --output_file_name "cfd_compiler_output.json" 2> /tmp/memory_profile.log
           
           # Unwind profile monitoring immediately post-execution 
