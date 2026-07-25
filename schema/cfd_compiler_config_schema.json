@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CFDCompilerConfig",
+  "type": "object",
+  "properties": {
+    "engine_type": { "type": "string", "enum": ["gmsh", "fallback"] },
+    "solver_version": { "type": "string" },
+    "tolerance": { "type": "number", "minimum": 0 },
+    "max_element_size": { "type": "number", "positive": true },
+    "min_element_size": { "type": "number", "positive": true },
+    "boundary_condition_mapping": {
+      "type": "array",
+      "description": "Mapping rules linking spatial domain surfaces to physical boundary conditions.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "location": {
+            "type": "string",
+            "enum": ["x_min", "x_max", "y_min", "y_max", "z_min", "z_max", "wall"]
+          },
+          "type": {
+            "type": "string",
+            "enum": ["no-slip", "free-slip", "inflow", "outflow", "pressure"]
+          },
+          "values": {
+            "type": "object",
+            "properties": {
+              "u": { "type": "number" },
+              "v": { "type": "number" },
+              "w": { "type": "number" },
+              "p": { "type": "number" }
+            },
+            "required": ["u", "v", "w", "p"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["location", "type", "values"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "engine_type",
+    "solver_version",
+    "tolerance",
+    "max_element_size",
+    "min_element_size",
+    "boundary_condition_mapping"
+  ]
+}
