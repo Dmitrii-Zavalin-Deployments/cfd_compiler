@@ -112,47 +112,63 @@ def main() -> None:
 
     validate_json(config_data, config_schema_path)
 
-    # Strict No-Default Policy: Extract required keys directly or terminate process
+    # Strict No-Default Policy: Direct key extraction with immediate failure on missing parameters
     try:
+        if "tolerance" not in config_data:
+            raise KeyError("tolerance")
+        if "max_element_size" not in config_data:
+            raise KeyError("max_element_size")
+        if "min_element_size" not in config_data:
+            raise KeyError("min_element_size")
+        if "boundary_condition_mapping" not in config_data:
+            raise KeyError("boundary_condition_mapping")
+
         tolerance = config_data["tolerance"]
         max_element_size = config_data["max_element_size"]
         min_element_size = config_data["min_element_size"]
         config_bc_mapping = config_data["boundary_condition_mapping"]
     except KeyError as err:
-        logger.critical(f"CONSTITUTION VIOLATION: Required parameter missing in config.json: {err}")
+        logger.critical(f"CONSTITUTION VIOLATION: Required configuration parameter missing in config.json: {err}")
         sys.exit(1)
 
     # 3. Ingest Input (Supports JSON Contract or Direct STEP file)
+    schema_dir = root_dir / "schema"
+
     try:
         if input_file_path.suffix.lower() in [".step", ".stp"]:
             input_data = {
                 "step_file_path": str(input_file_path),
                 "boundary_condition_mapping": config_bc_mapping
             }
-            logger.info("Detected direct STEP file input. Loaded boundary conditions from config.")
+            logger.info("Detected direct STEP file input. Synthesized contract using config boundary conditions.")
         else:
             with open(input_file_path, "r", encoding="utf-8") as f:
                 input_data = json.load(f)
             logger.info(f"Input contract loaded successfully from {input_file_path}")
+
+            # Validate JSON contract against schema
+            validate_json(input_data, schema_dir / "cfd_compiler_input_schema.json")
+
     except Exception as err:
-        logger.critical(f"Failure reading input file {input_file_path}: {err}")
+        logger.critical(f"Failure processing input file {input_file_path}: {err}")
         sys.exit(1)
 
-    # Validate Input Schema if JSON contract
-    schema_dir = root_dir / "schema"
-    if input_file_path.suffix.lower() not in [".step", ".stp"]:
-        validate_json(input_data, schema_dir / "cfd_compiler_input_schema.json")
+    # Strict No-Default Policy: Direct key extraction without fallback assignments
+    try:
+        if "step_file_path" not in input_data:
+            raise KeyError(
+                "CONSTITUTION VIOLATION: Missing required field 'step_file_path' in input payload. Execution halted."
+            )
+        if "boundary_condition_mapping" not in input_data:
+            raise KeyError(
+                "CONSTITUTION VIOLATION: Missing required field 'boundary_condition_mapping' in input payload. Execution halted."
+            )
 
-    # Strict No-Default Policy: Extract input file parameters
-    if "step_file_path" in input_data:
         step_file_path = input_data["step_file_path"]
-    else:
-        step_file_path = str(input_file_path)
-
-    if "boundary_condition_mapping" in input_data:
         bc_mapping = input_data["boundary_condition_mapping"]
-    else:
-        bc_mapping = config_bc_mapping
+    except KeyError as err:
+        logger.critical(f"{err}")
+        sys.exit(1)
 
     # 4. Initialize Sovereign State Container with Config & Input Data
     container = SovereignContainer(

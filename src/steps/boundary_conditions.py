@@ -1,5 +1,3 @@
-# src/steps/boundary_conditions.py
-
 import logging
 from interfaces.base_interface import StepInterface
 from src.state.cfd_compiler_state import BoundaryConditionState, SovereignContainer
@@ -10,14 +8,39 @@ logger = logging.getLogger(__name__)
 class BoundaryConditionsStep(StepInterface):
     """
     Stage 2 & 3: Boundary Condition Mapping Expansion.
+    Strict non-default execution mandate: raises immediate KeyError if 
+    required rule mapping fields are missing.
     """
     __slots__ = ()
 
     def execute(self, container: SovereignContainer) -> None:
         logger.info("Executing BoundaryConditionsStep...")
-        
+
+        if container.boundary_condition_mapping is None:
+            raise ValueError(
+                "CONSTITUTION VIOLATION: 'boundary_condition_mapping' is uninitialized. Execution halted."
+            )
+
         resolved_bcs = []
-        for rule in container.boundary_condition_mapping:
+        for idx, rule in enumerate(container.boundary_condition_mapping):
+            if not isinstance(rule, dict):
+                raise TypeError(
+                    f"CONSTITUTION VIOLATION: Rule at index {idx} must be a dictionary. Execution halted."
+                )
+
+            if "location" not in rule:
+                raise KeyError(
+                    f"CONSTITUTION VIOLATION: Missing required field 'location' in boundary rule at index {idx}. Execution halted."
+                )
+            if "type" not in rule:
+                raise KeyError(
+                    f"CONSTITUTION VIOLATION: Missing required field 'type' in boundary rule at index {idx}. Execution halted."
+                )
+            if "values" not in rule:
+                raise KeyError(
+                    f"CONSTITUTION VIOLATION: Missing required field 'values' in boundary rule at index {idx}. Execution halted."
+                )
+
             loc = rule["location"]
             btype = rule["type"]
             vals = dict(rule["values"])

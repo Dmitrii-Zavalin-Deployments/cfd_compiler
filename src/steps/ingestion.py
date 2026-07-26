@@ -1,5 +1,3 @@
-# src/steps/ingestion.py
-
 import logging
 from pathlib import Path
 from interfaces.base_interface import StepInterface
@@ -19,28 +17,40 @@ logger = logging.getLogger(__name__)
 class IngestionStep(StepInterface):
     """
     Stage 1: STEP Ingestion & Domain Spatial Bounding Box Calculation.
+    Strict non-default execution mandate: domain bounds must be derived strictly 
+    from valid CAD geometry. Fallback domain estimations are prohibited.
     """
     __slots__ = ()
 
     def execute(self, container: SovereignContainer) -> None:
         logger.info(f"Executing IngestionStep for: {container.step_file_path}")
+
+        if not HAS_OCC:
+            raise ImportError(
+                "CONSTITUTION VIOLATION: OpenCASCADE (pythonocc) is required for CAD ingestion."
+            )
+
         step_path = Path(container.step_file_path)
+        if not step_path.exists():
+            raise FileNotFoundError(
+                f"CONSTITUTION VIOLATION: STEP file not found at path '{step_path}'. Execution halted."
+            )
 
-        if HAS_OCC and step_path.exists():
-            reader = STEPControl_Reader()
-            status = reader.ReadFile(str(step_path))
-            if status == 1:  # IFSelect_RetDone
-                reader.TransferRoots()
-                shape = reader.Shape()
-                container.cad_solid = shape
+        reader = STEPControl_Reader()
+        status = reader.ReadFile(str(step_path))
+        if status != 1:  # 1 == IFSelect_RetDone
+            raise RuntimeError(
+                f"CONSTITUTION VIOLATION: Failed to read STEP geometry at '{step_path}' (status code: {status}). Execution halted."
+            )
 
-                bounding_box = Bnd_Box()
-                brepbndlib.Add(shape, bounding_box)
-                xmin, ymin, zmin, xmax, ymax, zmax = bounding_box.Get()
-                container.bounding_box = (xmin, xmax, ymin, ymax, zmin, zmax)
-                logger.info(f"OCC Bounding Box parsed successfully: {container.bounding_box}")
-                return
+        reader.TransferRoots()
+        shape = reader.Shape()
+        container.cad_solid = shape
 
-        # Fallback bounding box estimation
-        logger.warning("OCC unavailable or step file missing. Falling back to default domain bounds.")
-        container.bounding_box = (-2500.0, 2500.0, -2500.0, 2500.0, 0.0, 5000.0)
+        # Compute bounding box strictly from geometry
+        bounding_box = Bnd_Box()
+        brepbndlib.Add(shape, bounding_box)
+        xmin, ymin, zmin, xmax, ymax, zmax = bounding_box.Get()
+
+        container.bounding_box = (xmin, xmax, ymin, ymax, zmin, zmax)
+        logger.info(f"OCC Bounding Box parsed successfully from geometry: {container.bounding_box}")

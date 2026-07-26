@@ -1,5 +1,3 @@
-# src/utils/renderer.py
-
 from pathlib import Path
 from typing import Any, Dict, Tuple
 import numpy as np
@@ -52,14 +50,14 @@ def render_spatial_location_map(output_path: Path, bounds: Tuple[float, ...]) ->
         handles=legend_patches,
         title="Spatial Location",
         loc="center left",
-        bounding_box_to_anchor=(1.05, 0.5),
+        bbox_to_anchor=(1.05, 0.5),
         fontsize=9,
         title_fontsize=10,
         frameon=True
     )
 
     plt.tight_layout()
-    plt.savefig(output_path, dpi=150, bounding_box_inches="tight")
+    plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -69,16 +67,25 @@ def render_physical_boundary_map(
     location_to_type: Dict[str, str],
     location_to_values: Dict[str, Dict[str, float]]
 ) -> None:
-    """Renders Physical Boundary Map with dynamic velocity vectors & legend (Model 2)."""
+    """
+    Renders Physical Boundary Map with dynamic velocity vectors & legend (Model 2).
+    Strict non-default execution mandate: raises immediate KeyError on missing color mappings or missing velocity values.
+    """
     fig = plt.figure(figsize=(10, 7))
     ax = fig.add_subplot(111, projection="3d")
 
     face_colors = {}
     for loc, btype in location_to_type.items():
-        face_colors[loc] = PHYSICAL_COLOR_MAP.get(btype, "#708090")
+        if btype not in PHYSICAL_COLOR_MAP:
+            raise KeyError(
+                f"CONSTITUTION VIOLATION: Unknown boundary type '{btype}' for location '{loc}'. Execution halted."
+            )
+        face_colors[loc] = PHYSICAL_COLOR_MAP[btype]
 
     if "wall" not in face_colors:
-        face_colors["wall"] = PHYSICAL_COLOR_MAP.get("no-slip", "#708090")
+        if "no-slip" not in PHYSICAL_COLOR_MAP:
+            raise KeyError("CONSTITUTION VIOLATION: 'no-slip' type missing from PHYSICAL_COLOR_MAP. Execution halted.")
+        face_colors["wall"] = PHYSICAL_COLOR_MAP["no-slip"]
 
     _draw_domain_geometry(ax, bounds, face_color_dict=face_colors, mode="physical")
 
@@ -86,9 +93,14 @@ def render_physical_boundary_map(
     for loc, btype in location_to_type.items():
         if btype == "inflow" and loc in location_to_values:
             vals = location_to_values[loc]
-            u = vals.get("u", 0.0)
-            v = vals.get("v", 0.0)
-            w = vals.get("w", 0.0)
+            if "u" not in vals or "v" not in vals or "w" not in vals:
+                raise KeyError(
+                    f"CONSTITUTION VIOLATION: Inflow boundary condition at '{loc}' missing required velocity components (u, v, w). Execution halted."
+                )
+
+            u = vals["u"]
+            v = vals["v"]
+            w = vals["w"]
 
             cx, cy, cz = _get_face_centroid(loc, bounds)
             vel_mag = np.sqrt(u**2 + v**2 + w**2)
@@ -113,19 +125,19 @@ def render_physical_boundary_map(
         handles=legend_patches,
         title="Boundary Condition Type",
         loc="center left",
-        bounding_box_to_anchor=(1.05, 0.5),
+        bbox_to_anchor=(1.05, 0.5),
         fontsize=9,
         title_fontsize=10,
         frameon=True
     )
 
     plt.tight_layout()
-    plt.savefig(output_path, dpi=150, bounding_box_inches="tight")
+    plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
 
 
 def _get_face_centroid(loc: str, bounds: Tuple[float, ...]) -> Tuple[float, float, float]:
-    """Calculates center coordinate for a given bounding box location."""
+    """Calculates center coordinate for a given bounding box location strictly without silent fallback."""
     xmin, xmax, ymin, ymax, zmin, zmax = bounds
     mid_x, mid_y, mid_z = (xmin + xmax) / 2.0, (ymin + ymax) / 2.0, (zmin + zmax) / 2.0
 
@@ -138,7 +150,13 @@ def _get_face_centroid(loc: str, bounds: Tuple[float, ...]) -> Tuple[float, floa
         "z_max": (mid_x, mid_y, zmax),
         "wall":  (mid_x, mid_y, mid_z),
     }
-    return centroids.get(loc, (mid_x, mid_y, mid_z))
+
+    if loc not in centroids:
+        raise KeyError(
+            f"CONSTITUTION VIOLATION: Invalid location '{loc}' requested for face centroid. Execution halted."
+        )
+
+    return centroids[loc]
 
 
 def _draw_alternating_edge(
@@ -175,7 +193,7 @@ def _draw_domain_geometry(
     face_color_dict: Dict[str, str],
     mode: str
 ) -> None:
-    """Renders 3D bounding box faces with faint fills and alternating color 'shtrih' edges."""
+    """Renders 3D bounding box faces with faint fills and alternating color 'shtrih' edges strictly without fallbacks."""
     xmin, xmax, ymin, ymax, zmin, zmax = bounds
 
     # 1. Render translucent face fills (no collection edge)
@@ -189,7 +207,11 @@ def _draw_domain_geometry(
     }
 
     for loc, verts in plane_definitions.items():
-        color = face_color_dict.get(loc, "#A9A9A9")
+        if loc not in face_color_dict:
+            raise KeyError(
+                f"CONSTITUTION VIOLATION: Missing face color for location '{loc}'. Execution halted."
+            )
+        color = face_color_dict[loc]
         poly = Poly3DCollection(
             [verts],
             alpha=0.10,
@@ -218,8 +240,12 @@ def _draw_domain_geometry(
     ]
 
     for p1, p2, face1, face2 in edges:
-        c1 = face_color_dict.get(face1, "#A9A9A9")
-        c2 = face_color_dict.get(face2, "#A9A9A9")
+        if face1 not in face_color_dict or face2 not in face_color_dict:
+            raise KeyError(
+                f"CONSTITUTION VIOLATION: Missing color definition for edge faces '{face1}' or '{face2}'. Execution halted."
+            )
+        c1 = face_color_dict[face1]
+        c2 = face_color_dict[face2]
         _draw_alternating_edge(ax, p1, p2, c1, c2, num_segments=12)
 
     # 3. Dynamic derivation of internal cylinder geometry from domain bounds
@@ -237,7 +263,12 @@ def _draw_domain_geometry(
     x_grid = cyl_center_x + radius * np.cos(theta_grid)
     z_grid = cyl_center_z + radius * np.sin(theta_grid)
 
-    wall_color = face_color_dict.get("wall", "#2C3E50")
+    if "wall" not in face_color_dict:
+        raise KeyError(
+            "CONSTITUTION VIOLATION: Missing face color for 'wall'. Execution halted."
+        )
+    wall_color = face_color_dict["wall"]
+
     ax.plot_surface(
         x_grid, y_grid, z_grid,
         color=wall_color,
