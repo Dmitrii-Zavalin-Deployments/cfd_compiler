@@ -20,13 +20,14 @@ class SovereignContainer:
     THE SOVEREIGN CONTAINER (CFD Compiler)
     
     Acts as the single source of truth for all data at every stage of the CFD compilation pipeline.
-    Union of input contracts, configuration, and compilation results.
+    Union of input contracts (`cfd_compiler_input_schema.json`), configuration 
+    (`cfd_compiler_config_schema.json`), and compilation results (`cfd_compiler_results_schema.json`).
     
     Strictly enforces memory efficiency via __slots__ and explicit initialization.
     No default values or convenience fallbacks are permitted.
     """
     __slots__ = (
-        '_bbox',
+        '_bounding_box',
         '_boundary_conditions',
         '_cad_solid',
         '_status',
@@ -49,7 +50,7 @@ class SovereignContainer:
     ):
         """
         Explicit Initialization: No defaults permitted. 
-        All pipeline configuration must be provided by the caller.
+        All pipeline inputs and configuration parameters must be provided explicitly by the caller.
         """
         self.step_file_path = step_file_path
         self.boundary_condition_mapping = boundary_condition_mapping
@@ -57,8 +58,8 @@ class SovereignContainer:
         self.max_element_size = max_element_size
         self.min_element_size = min_element_size
         
-        # --- Computed Fields (Initialized as None) ---
-        self._bbox = None
+        # --- Computed Results Fields (Initialized as None) ---
+        self._bounding_box = None
         self._boundary_conditions = None
         self._cad_solid = None
         self._status = None
@@ -118,14 +119,14 @@ class SovereignContainer:
         self._min_element_size = float(value)
 
     @property
-    def bbox(self) -> Optional[Tuple[float, float, float, float, float, float]]: 
-        return self._bbox
+    def bounding_box(self) -> Optional[Tuple[float, float, float, float, float, float]]: 
+        return self._bounding_box
 
-    @bbox.setter
-    def bbox(self, value: Optional[Tuple[float, ...]]):
+    @bounding_box.setter
+    def bounding_box(self, value: Optional[Tuple[float, ...]]):
         if value is not None and not isinstance(value, tuple):
-            raise TypeError("CONSTITUTION VIOLATION: 'bbox' must be a tuple.")
-        self._bbox = value
+            raise TypeError("CONSTITUTION VIOLATION: 'bounding_box' must be a tuple.")
+        self._bounding_box = value
 
     @property
     def boundary_conditions(self) -> Optional[List[BoundaryConditionState]]: 

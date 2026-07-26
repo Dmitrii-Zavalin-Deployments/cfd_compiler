@@ -16,6 +16,7 @@
 • interfaces/cfd_compiler_interface.py
 • interfaces/base_interface.py
 • interfaces/pipeline_interface.py
+• merged_content.txt
 • requirements.txt
 • config/config.json
 • src/main.py
@@ -37,46 +38,9 @@
 ========== START OF FILE: tests/conftest.py ==========
 class dummy_in(dict):
     def __init__(self):
-        # 1. Initialize primary fields from cfd_compiler_input_schema.json (1:1 mapping)
+        # 1. Initialize primary fields from cfd_compiler_input_schema.json (1:1 mapping)[cite: 6]
         super().__init__({
-            "step_file_path": "./assets/geometry.step",
-            "boundary_condition_mapping": [
-                {
-                    "location": "x_min",
-                    "type": "inflow",
-                    "values": {"u": 2.5, "v": 0.0, "w": 0.0, "p": 101325.0}
-                },
-                {
-                    "location": "x_max",
-                    "type": "outflow",
-                    "values": {"p": 100000.0}
-                },
-                {
-                    "location": "wall",
-                    "type": "no-slip",
-                    "values": {"u": 0.0, "v": 0.0, "w": 0.0}
-                },
-                {
-                    "location": "y_min",
-                    "type": "free-slip",
-                    "values": {"u": 0.0, "v": 0.0, "w": 0.0}
-                },
-                {
-                    "location": "y_max",
-                    "type": "free-slip",
-                    "values": {"u": 0.0, "v": 0.0, "w": 0.0}
-                },
-                {
-                    "location": "z_min",
-                    "type": "free-slip",
-                    "values": {"u": 0.0, "v": 0.0, "w": 0.0}
-                },
-                {
-                    "location": "z_max",
-                    "type": "free-slip",
-                    "values": {"u": 0.0, "v": 0.0, "w": 0.0}
-                }
-            ]
+            "step_file_path": "./assets/geometry.step"
         })
         # 2. Store meta-fields as instance attributes (avoids interfering with key validation)
         self.validation_flag = False
@@ -93,7 +57,7 @@ class dummy_in(dict):
 
 class dummy_out(dict):
     def __init__(self):
-        # 1. Initialize primary fields from cfd_compiler_results_schema.json (1:1 mapping)
+        # 1. Initialize primary fields from cfd_compiler_results_schema.json (1:1 mapping)[cite: 7]
         super().__init__({
             "status": "success",
             "compiled_cells_count": 24576,
@@ -408,7 +372,7 @@ spatial location mapping, physical boundary parsing, and solver preprocessing.
 ========== START OF FILE: schema/cfd_compiler_config_schema.json ==========
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "CFDCompilerConfig",
+  "title": "cfd_compiler_config_schema",
   "type": "object",
   "properties": {
     "tolerance": { "type": "number", "minimum": 0 },
@@ -549,7 +513,7 @@ spatial location mapping, physical boundary parsing, and solver preprocessing.
     }
   },
   "required": ["step_file_path"],
-  "additionalProperties": false
+  "additionalProperties": true
 }========== END OF FILE: schema/cfd_compiler_input_schema.json ==========
 
 ========== START OF FILE: schema/cfd_compiler_output_schema.json ==========
@@ -557,7 +521,7 @@ spatial location mapping, physical boundary parsing, and solver preprocessing.
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "cfd_compiler_output_schema",
   "type": "object",
-  "description": "Assembled bundle combining user input variables and compilation metadata results.",
+  "description": "Assembled bundle combining user input variables, configuration parameters, and compilation metadata results.",
   "properties": {
     "input": {
       "type": "object",
@@ -566,6 +530,28 @@ spatial location mapping, physical boundary parsing, and solver preprocessing.
         "step_file_path": {
           "type": "string",
           "description": "Path to the raw CAD STEP geometry file."
+        }
+      },
+      "required": [
+        "step_file_path"
+      ],
+      "additionalProperties": true
+    },
+    "config": {
+      "type": "object",
+      "title": "cfd_compiler_config_schema",
+      "properties": {
+        "tolerance": {
+          "type": "number",
+          "minimum": 0
+        },
+        "max_element_size": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "min_element_size": {
+          "type": "number",
+          "exclusiveMinimum": 0
         },
         "boundary_condition_mapping": {
           "type": "array",
@@ -575,27 +561,66 @@ spatial location mapping, physical boundary parsing, and solver preprocessing.
             "properties": {
               "location": {
                 "type": "string",
-                "enum": ["x_min", "x_max", "y_min", "y_max", "z_min", "z_max", "wall"]
+                "enum": [
+                  "x_min",
+                  "x_max",
+                  "y_min",
+                  "y_max",
+                  "z_min",
+                  "z_max",
+                  "wall"
+                ]
               },
               "type": {
                 "type": "string",
-                "enum": ["no-slip", "free-slip", "inflow", "outflow", "pressure"]
+                "enum": [
+                  "no-slip",
+                  "free-slip",
+                  "inflow",
+                  "outflow",
+                  "pressure"
+                ]
               },
               "values": {
                 "type": "object",
                 "properties": {
-                  "u": { "type": "number" },
-                  "v": { "type": "number" },
-                  "w": { "type": "number" },
-                  "p": { "type": "number" }
-                }
+                  "u": {
+                    "type": "number"
+                  },
+                  "v": {
+                    "type": "number"
+                  },
+                  "w": {
+                    "type": "number"
+                  },
+                  "p": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "u",
+                  "v",
+                  "w",
+                  "p"
+                ],
+                "additionalProperties": false
               }
             },
-            "required": ["location", "type", "values"]
+            "required": [
+              "location",
+              "type",
+              "values"
+            ],
+            "additionalProperties": false
           }
         }
       },
-      "required": ["step_file_path", "boundary_condition_mapping"]
+      "required": [
+        "tolerance",
+        "max_element_size",
+        "min_element_size",
+        "boundary_condition_mapping"
+      ]
     },
     "results": {
       "type": "object",
@@ -603,7 +628,10 @@ spatial location mapping, physical boundary parsing, and solver preprocessing.
       "properties": {
         "status": {
           "type": "string",
-          "enum": ["success", "failed"],
+          "enum": [
+            "success",
+            "failed"
+          ],
           "description": "Execution status of the compilation gate."
         },
         "compiled_cells_count": {
@@ -681,6 +709,7 @@ spatial location mapping, physical boundary parsing, and solver preprocessing.
   },
   "required": [
     "input",
+    "config",
     "results"
   ]
 }========== END OF FILE: schema/cfd_compiler_output_schema.json ==========
@@ -4921,6 +4950,9 @@ class PipelineInterface(Protocol):
     def artifacts_generated(self) -> List[str]:
         """Generated 3D visual rendering diagnostic artifact filenames."""
         ...========== END OF FILE: interfaces/pipeline_interface.py ==========
+
+========== START OF FILE: merged_content.txt ==========
+========== END OF FILE: merged_content.txt ==========
 
 ========== START OF FILE: requirements.txt ==========
 # Foundation & Visualization

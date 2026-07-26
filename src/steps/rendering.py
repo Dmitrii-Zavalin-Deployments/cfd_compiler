@@ -18,7 +18,7 @@ class RenderingStep(StepInterface):
     def execute(self, container: SovereignContainer) -> None:
         logger.info("Executing RenderingStep...")
 
-        if container.bbox is None or container.boundary_conditions is None:
+        if container.bounding_box is None or container.boundary_conditions is None:
             raise RuntimeError("CONSTITUTION VIOLATION: Ingestion and BoundaryConditions steps must run before RenderingStep.")
 
         workspace_dir = Path(container.step_file_path).parent.resolve()
@@ -34,13 +34,13 @@ class RenderingStep(StepInterface):
         # Generate Spatial Map
         render_spatial_location_map(
             output_path=workspace_dir / artifacts[0],
-            bounds=container.bbox
+            bounds=container.bounding_box
         )
 
         # Generate Physical Map
         render_physical_boundary_map(
             output_path=workspace_dir / artifacts[1],
-            bounds=container.bbox,
+            bounds=container.bounding_box,
             location_to_type=location_to_type,
             location_to_values=location_to_values
         )

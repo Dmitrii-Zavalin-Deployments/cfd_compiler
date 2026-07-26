@@ -184,7 +184,7 @@ def main() -> None:
 
     results = {
         "status": container.status,
-        "bounding_box": container.bbox,
+        "bounding_box": container.bounding_box,
         "compiled_cells_count": container.compiled_cells_count,
         "artifacts_generated": container.artifacts_generated,
         "boundary_conditions": [

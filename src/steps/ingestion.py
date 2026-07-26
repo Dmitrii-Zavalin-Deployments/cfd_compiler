@@ -34,13 +34,13 @@ class IngestionStep(StepInterface):
                 shape = reader.Shape()
                 container.cad_solid = shape
 
-                bbox = Bnd_Box()
-                brepbndlib.Add(shape, bbox)
-                xmin, ymin, zmin, xmax, ymax, zmax = bbox.Get()
-                container.bbox = (xmin, xmax, ymin, ymax, zmin, zmax)
-                logger.info(f"OCC Bounding Box parsed successfully: {container.bbox}")
+                bounding_box = Bnd_Box()
+                brepbndlib.Add(shape, bounding_box)
+                xmin, ymin, zmin, xmax, ymax, zmax = bounding_box.Get()
+                container.bounding_box = (xmin, xmax, ymin, ymax, zmin, zmax)
+                logger.info(f"OCC Bounding Box parsed successfully: {container.bounding_box}")
                 return
 
         # Fallback bounding box estimation
         logger.warning("OCC unavailable or step file missing. Falling back to default domain bounds.")
-        container.bbox = (-2500.0, 2500.0, -2500.0, 2500.0, 0.0, 5000.0)
+        container.bounding_box = (-2500.0, 2500.0, -2500.0, 2500.0, 0.0, 5000.0)
