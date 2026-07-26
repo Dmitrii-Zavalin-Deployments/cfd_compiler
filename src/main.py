@@ -60,7 +60,7 @@ def main() -> None:
     parser.add_argument(
         "--input_file_name",
         required=True,
-        help="Isolated input contract JSON file name (e.g. cfd_compiler_input.json)."
+        help="Isolated input contract JSON file name or direct STEP file name."
     )
     parser.add_argument(
         "--output_file_name",
@@ -86,26 +86,33 @@ def main() -> None:
     logger.info(f"CFD Compiler initialized. Workspace: {workspace_dir}")
 
     if not input_file_path.exists():
-        error_msg = f"CONSTITUTION VIOLATION: Input contract missing: {input_file_path}"
+        error_msg = f"CONSTITUTION VIOLATION: Input file missing: {input_file_path}"
         logger.critical(error_msg)
         sys.exit(1)
 
-    # 2. Ingest Input JSON Contract
+    # 2. Ingest Input (Supports JSON Contract or Direct STEP file fallback)
     try:
-        with open(input_file_path, "r", encoding="utf-8") as f:
-            input_data = json.load(f)
-        logger.info(f"Input contract loaded successfully from {input_file_path}")
+        if input_file_path.suffix.lower() in [".step", ".stp"]:
+            input_data = {
+                "step_file_path": str(input_file_path),
+                "boundary_condition_mapping": []
+            }
+            logger.info(f"Detected direct STEP file input. Generated default input contract wrapper.")
+        else:
+            with open(input_file_path, "r", encoding="utf-8") as f:
+                input_data = json.load(f)
+            logger.info(f"Input contract loaded successfully from {input_file_path}")
     except Exception as err:
-        logger.critical(f"Failure reading input JSON {input_file_path}: {err}")
+        logger.critical(f"Failure reading input file {input_file_path}: {err}")
         sys.exit(1)
 
-    # Validate Input Schema if Schema Directory Exists
+    # Validate Input Schema if Schema Directory Exists and input is a JSON contract
     schema_dir = workspace_dir / "schema"
-    validate_json(input_data, schema_dir / "cfd_compiler_input_schema.json")
+    if input_file_path.suffix.lower() not in [".step", ".stp"]:
+        validate_json(input_data, schema_dir / "cfd_compiler_input_schema.json")
 
     # 3. Initialize Sovereign State Container
-    # Extract payload attributes (No-Default Policy Enforcement via direct bracket/get extraction)
-    step_file_path = input_data.get("step_file_path", str(workspace_dir / "geometry.step"))
+    step_file_path = input_data.get("step_file_path", str(input_file_path))
     bc_mapping = input_data.get("boundary_condition_mapping", [])
 
     container = SovereignContainer(
