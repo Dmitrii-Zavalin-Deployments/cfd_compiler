@@ -14,26 +14,26 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 # Color palette for Spatial Location Map (Model 1)
 SPATIAL_COLOR_MAP = {
     "x_min": "#FF0000",  # Bright Red
-    "x_max": "#0055FF",  # Vivid Royal Blue
-    "y_min": "#00FF66",  # Vibrant Mint / Spring Green
+    "x_max": "#0066FF",  # Royal Blue
+    "y_min": "#00CC44",  # Emerald Green
     "y_max": "#800080",  # Solid Purple
-    "z_min": "#FFD700",  # Gold / Deep Yellow
-    "z_max": "#FF00FF",  # Bright Magenta
-    "wall":  "#1A252C",  # Deep Charcoal / Slate
+    "z_min": "#FF9900",  # Deep Amber / Orange
+    "z_max": "#FF00AA",  # Bright Magenta
+    "wall":  "#2C3E50",  # Dark Slate Charcoal
 }
 
 # Color palette for Physical Boundary Map (Model 2)
 PHYSICAL_COLOR_MAP = {
     "inflow":    "#0000FF",  # Electric Blue
     "outflow":   "#FF0000",  # Bright Red
-    "no-slip":   "#708090",  # Medium Charcoal / Slate Gray
-    "free-slip": "#3CB371",  # Translucent Green
-    "pressure":  "#800080",  # Purple / Magenta
+    "no-slip":   "#708090",  # Slate Gray
+    "free-slip": "#3CB371",  # Medium Sea Green
+    "pressure":  "#800080",  # Purple
 }
 
 
 def render_spatial_location_map(output_path: Path, bounds: Tuple[float, ...]) -> None:
-    """Renders Spatial Location Map with color agenda legend (Model 1)."""
+    """Renders Spatial Location Map with high-contrast colored borders and low-alpha fill (Model 1)."""
     fig = plt.figure(figsize=(10, 7))
     ax = fig.add_subplot(111, projection="3d")
 
@@ -69,7 +69,7 @@ def render_physical_boundary_map(
     location_to_type: Dict[str, str],
     location_to_values: Dict[str, Dict[str, float]]
 ) -> None:
-    """Renders Physical Boundary Map with dynamic velocity vectors & color agenda legend (Model 2)."""
+    """Renders Physical Boundary Map with dynamic velocity vectors & legend (Model 2)."""
     fig = plt.figure(figsize=(10, 7))
     ax = fig.add_subplot(111, projection="3d")
 
@@ -82,7 +82,7 @@ def render_physical_boundary_map(
 
     _draw_domain_geometry(ax, bounds, face_color_dict=face_colors, mode="physical")
 
-    # Dynamic 3D velocity vector overlay for any boundary set to 'inflow'
+    # Dynamic 3D velocity vector overlay for inflow
     for loc, btype in location_to_type.items():
         if btype == "inflow" and loc in location_to_values:
             vals = location_to_values[loc]
@@ -147,7 +147,7 @@ def _draw_domain_geometry(
     face_color_dict: Dict[str, str],
     mode: str
 ) -> None:
-    """Renders 3D bounding box faces and internal CAD geometry features using Poly3DCollection patches."""
+    """Renders 3D bounding box faces and dynamically scaled internal geometry features."""
     xmin, xmax, ymin, ymax, zmin, zmax = bounds
 
     plane_definitions = {
@@ -159,28 +159,38 @@ def _draw_domain_geometry(
         "z_max": np.array([[xmin, ymin, zmax], [xmax, ymin, zmax], [xmax, ymax, zmax], [xmin, ymax, zmax]]),
     }
 
+    # Render bounding box planes: low face opacity + distinct colored wireframe borders
     for loc, verts in plane_definitions.items():
         color = face_color_dict.get(loc, "#A9A9A9")
-        poly = Poly3DCollection([verts], alpha=0.35, facecolor=color, edgecolor="black", linewidths=0.5)
+        poly = Poly3DCollection(
+            [verts],
+            alpha=0.15,
+            facecolor=color,
+            edgecolor=color,
+            linewidths=1.5
+        )
         ax.add_collection3d(poly)
 
-    # Internal cylindrical wall surface
-    radius = 1500.0
+    # Dynamic derivation of internal cylinder geometry from domain bounds
+    span_x = xmax - xmin
+    span_z = zmax - zmin
+    radius = min(span_x, span_z) * 0.375  # Dynamically scales relative to domain cross-section
+
     cyl_center_x = (xmin + xmax) / 2.0
     cyl_center_z = (zmin + zmax) / 2.0
-    
-    y_coords = np.linspace(ymin, ymax, 20)
-    theta = np.linspace(0, 2 * np.pi, 30)
+
+    y_coords = np.linspace(ymin, ymax, 25)
+    theta = np.linspace(0, 2 * np.pi, 40)
     theta_grid, y_grid = np.meshgrid(theta, y_coords)
-    
+
     x_grid = cyl_center_x + radius * np.cos(theta_grid)
     z_grid = cyl_center_z + radius * np.sin(theta_grid)
 
-    wall_color = face_color_dict.get("wall", "#2F4F4F")
+    wall_color = face_color_dict.get("wall", "#2C3E50")
     ax.plot_surface(
         x_grid, y_grid, z_grid,
         color=wall_color,
-        alpha=0.65,
+        alpha=0.75,
         shade=True,
         edgecolor="none"
     )
