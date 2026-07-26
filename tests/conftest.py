@@ -1,25 +1,20 @@
 class dummy_in(dict):
     def __init__(self):
-        # 1. Initialize primary fields from cfd_compiler_input_schema.json (1:1 mapping)[cite: 6]
+        # 1. Initialize primary fields from cfd_compiler_input_schema.json
         super().__init__({
             "step_file_path": "./assets/geometry.step"
         })
-        # 2. Store meta-fields as instance attributes (avoids interfering with key validation)
-        self.validation_flag = False
 
     def override(self, **kwargs):
-        """Updates dictionary for schema fields and attributes for meta-fields."""
+        """Updates dictionary strictly for schema fields."""
         for key, value in kwargs.items():
-            if key in self:
-                self[key] = value
-            else:
-                setattr(self, key, value)
+            self[key] = value
         return self
 
 
 class dummy_out(dict):
     def __init__(self):
-        # 1. Initialize primary fields from cfd_compiler_results_schema.json (1:1 mapping)[cite: 7]
+        # 1. Initialize primary fields from cfd_compiler_results_schema.json
         super().__init__({
             "status": "success",
             "compiled_cells_count": 24576,
@@ -65,14 +60,9 @@ class dummy_out(dict):
                 "physical_boundary_map.png"
             ]
         })
-        # 2. Store meta-fields as instance attributes
-        self.execution_timestamp = "2026-07-25"
 
     def override(self, **kwargs):
-        """Updates dictionary for schema fields and attributes for meta-fields."""
+        """Updates dictionary strictly for schema fields."""
         for key, value in kwargs.items():
-            if key in self:
-                self[key] = value
-            else:
-                setattr(self, key, value)
+            self[key] = value
         return self
