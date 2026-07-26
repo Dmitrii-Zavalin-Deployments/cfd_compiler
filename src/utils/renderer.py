@@ -147,7 +147,7 @@ def _draw_domain_geometry(
     face_color_dict: Dict[str, str],
     mode: str
 ) -> None:
-    """Renders 3D bounding box faces and dynamically scaled internal geometry features."""
+    """Renders 3D bounding box faces with faint tint and crisp, fully opaque colored boundary edges."""
     xmin, xmax, ymin, ymax, zmin, zmax = bounds
 
     plane_definitions = {
@@ -162,14 +162,22 @@ def _draw_domain_geometry(
     # Render bounding box planes: low face opacity + distinct colored wireframe borders
     for loc, verts in plane_definitions.items():
         color = face_color_dict.get(loc, "#A9A9A9")
+
+        # 1. Faint translucent face fill without collection edges
         poly = Poly3DCollection(
             [verts],
-            alpha=0.15,
+            alpha=0.10,
             facecolor=color,
-            edgecolor=color,
-            linewidths=1.5
+            edgecolor="none"
         )
         ax.add_collection3d(poly)
+
+        # 2. Crisp, fully opaque, bold colored perimeter edges
+        closed_verts = np.vstack([verts, verts[0]])
+        xs = closed_verts[:, 0]
+        ys = closed_verts[:, 1]
+        zs = closed_verts[:, 2]
+        ax.plot3D(xs, ys, zs, color=color, linewidth=3.0, alpha=1.0)
 
     # Dynamic derivation of internal cylinder geometry from domain bounds
     span_x = xmax - xmin
