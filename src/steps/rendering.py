@@ -21,7 +21,7 @@ class RenderingStep(StepInterface):
         if container.bbox is None or container.boundary_conditions is None:
             raise RuntimeError("CONSTITUTION VIOLATION: Ingestion and BoundaryConditions steps must run before RenderingStep.")
 
-        workspace_dir = Path(".").resolve()
+        workspace_dir = Path(container.step_file_path).parent.resolve()
         artifacts = ["spatial_location_map.png", "physical_boundary_map.png"]
 
         # Reconstruct mapping dicts for physical rendering
