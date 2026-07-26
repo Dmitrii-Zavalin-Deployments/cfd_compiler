@@ -2,14 +2,18 @@ import logging
 from pathlib import Path
 from interfaces.base_interface import StepInterface
 from src.state.cfd_compiler_state import SovereignContainer
-from src.utils.renderer import render_physical_boundary_map, render_spatial_location_map
+from src.utils.renderer import (
+    render_step_snapshot,
+    render_spatial_location_map,
+    render_physical_boundary_map
+)
 
 logger = logging.getLogger(__name__)
 
 
 class RenderingStep(StepInterface):
     """
-    Stage 4: Headless Dual 3D Rendering (xvfb-run compatible).
+    Stage 4: Headless Multi-Map 3D Rendering (xvfb-run compatible).
     Strict non-default execution mandate: requires pre-validated domain bounds 
     and boundary condition states. Fallbacks or silent omissions are prohibited.
     """
@@ -34,7 +38,11 @@ class RenderingStep(StepInterface):
             )
 
         workspace_dir = Path(container.step_file_path).parent.resolve()
-        artifacts = ["spatial_location_map.png", "physical_boundary_map.png"]
+        artifacts = [
+            "step_snapshot.png",
+            "spatial_location_map.png",
+            "physical_boundary_map.png"
+        ]
 
         # Reconstruct mapping dicts for physical rendering with strict attribute checks
         location_to_type = {}
@@ -56,15 +64,21 @@ class RenderingStep(StepInterface):
             location_to_type[bc.location] = bc.type
             location_to_values[bc.location] = bc.values
 
+        # Generate Raw STEP Snapshot
+        render_step_snapshot(
+            output_path=workspace_dir / artifacts[0],
+            bounds=container.bounding_box
+        )
+
         # Generate Spatial Map
         render_spatial_location_map(
-            output_path=workspace_dir / artifacts[0],
+            output_path=workspace_dir / artifacts[1],
             bounds=container.bounding_box
         )
 
         # Generate Physical Map
         render_physical_boundary_map(
-            output_path=workspace_dir / artifacts[1],
+            output_path=workspace_dir / artifacts[2],
             bounds=container.bounding_box,
             location_to_type=location_to_type,
             location_to_values=location_to_values

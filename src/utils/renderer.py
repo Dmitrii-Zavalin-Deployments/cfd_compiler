@@ -9,6 +9,17 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
+# Color palette for Raw STEP Geometry Preview
+CAD_COLOR_MAP = {
+    "x_min": "#4A6572",  # Steel Slate Blue
+    "x_max": "#4A6572",  # Steel Slate Blue
+    "y_min": "#4A6572",  # Steel Slate Blue
+    "y_max": "#4A6572",  # Steel Slate Blue
+    "z_min": "#4A6572",  # Steel Slate Blue
+    "z_max": "#4A6572",  # Steel Slate Blue
+    "wall":  "#2C3E50",  # Dark Slate Charcoal
+}
+
 # Color palette for Spatial Location Map (Model 1)
 SPATIAL_COLOR_MAP = {
     "x_min": "#FF0000",  # Bright Red
@@ -28,6 +39,36 @@ PHYSICAL_COLOR_MAP = {
     "free-slip": "#3CB371",  # Medium Sea Green
     "pressure":  "#800080",  # Purple
 }
+
+
+def render_step_snapshot(output_path: Path, bounds: Tuple[float, ...]) -> None:
+    """Renders raw STEP geometry preview matching the exact 3D orientation of the pipeline maps."""
+    fig = plt.figure(figsize=(10, 7))
+    ax = fig.add_subplot(111, projection="3d")
+
+    _draw_domain_geometry(ax, bounds, face_color_dict=CAD_COLOR_MAP, mode="cad")
+
+    ax.set_title("3D Visual QA - Raw STEP Geometry", fontsize=12, fontweight="bold")
+    ax.set_xlabel("X (mm)")
+    ax.set_ylabel("Y (mm)")
+    ax.set_zlabel("Z (mm)")
+
+    legend_patches = [
+        mpatches.Patch(color="#4A6572", label="Raw CAD Geometry")
+    ]
+    ax.legend(
+        handles=legend_patches,
+        title="Input Model",
+        loc="center left",
+        bbox_to_anchor=(1.05, 0.5),
+        fontsize=9,
+        title_fontsize=10,
+        frameon=True
+    )
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
 
 
 def render_spatial_location_map(output_path: Path, bounds: Tuple[float, ...]) -> None:
