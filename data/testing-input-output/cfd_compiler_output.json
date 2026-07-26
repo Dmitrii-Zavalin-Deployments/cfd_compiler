@@ -163,6 +163,7 @@
     ],
     "compiled_cells_count": 1000,
     "artifacts_generated": [
+      "step_snapshot.png",
       "spatial_location_map.png",
       "physical_boundary_map.png"
     ],
