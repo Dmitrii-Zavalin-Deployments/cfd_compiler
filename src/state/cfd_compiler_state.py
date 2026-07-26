@@ -32,21 +32,30 @@ class SovereignContainer:
         '_status',
         '_compiled_cells_count',
         '_artifacts_generated',
-        'step_file_path',
-        'boundary_condition_mapping'
+        '_step_file_path',
+        '_boundary_condition_mapping',
+        '_tolerance',
+        '_max_element_size',
+        '_min_element_size'
     )
 
     def __init__(
         self, 
         step_file_path: str, 
-        boundary_condition_mapping: List[Dict[str, Any]]
+        boundary_condition_mapping: List[Dict[str, Any]],
+        tolerance: float,
+        max_element_size: float,
+        min_element_size: float
     ):
         """
         Explicit Initialization: No defaults permitted. 
         All pipeline configuration must be provided by the caller.
         """
-        self.step_file_path = str(step_file_path)
-        self.boundary_condition_mapping = list(boundary_condition_mapping)
+        self.step_file_path = step_file_path
+        self.boundary_condition_mapping = boundary_condition_mapping
+        self.tolerance = tolerance
+        self.max_element_size = max_element_size
+        self.min_element_size = min_element_size
         
         # --- Computed Fields (Initialized as None) ---
         self._bbox = None
@@ -57,6 +66,56 @@ class SovereignContainer:
         self._artifacts_generated = None
 
     # --- Properties with Constitution Enforcement ---
+
+    @property
+    def step_file_path(self) -> str:
+        return self._step_file_path
+
+    @step_file_path.setter
+    def step_file_path(self, value: str):
+        if not isinstance(value, str):
+            raise TypeError("CONSTITUTION VIOLATION: 'step_file_path' must be a string.")
+        self._step_file_path = value
+
+    @property
+    def boundary_condition_mapping(self) -> List[Dict[str, Any]]:
+        return self._boundary_condition_mapping
+
+    @boundary_condition_mapping.setter
+    def boundary_condition_mapping(self, value: List[Dict[str, Any]]):
+        if not isinstance(value, list):
+            raise TypeError("CONSTITUTION VIOLATION: 'boundary_condition_mapping' must be a List.")
+        self._boundary_condition_mapping = value
+
+    @property
+    def tolerance(self) -> float:
+        return self._tolerance
+
+    @tolerance.setter
+    def tolerance(self, value: float):
+        if not isinstance(value, (int, float)):
+            raise TypeError("CONSTITUTION VIOLATION: 'tolerance' must be a float or int.")
+        self._tolerance = float(value)
+
+    @property
+    def max_element_size(self) -> float:
+        return self._max_element_size
+
+    @max_element_size.setter
+    def max_element_size(self, value: float):
+        if not isinstance(value, (int, float)):
+            raise TypeError("CONSTITUTION VIOLATION: 'max_element_size' must be a float or int.")
+        self._max_element_size = float(value)
+
+    @property
+    def min_element_size(self) -> float:
+        return self._min_element_size
+
+    @min_element_size.setter
+    def min_element_size(self, value: float):
+        if not isinstance(value, (int, float)):
+            raise TypeError("CONSTITUTION VIOLATION: 'min_element_size' must be a float or int.")
+        self._min_element_size = float(value)
 
     @property
     def bbox(self) -> Optional[Tuple[float, float, float, float, float, float]]: 
