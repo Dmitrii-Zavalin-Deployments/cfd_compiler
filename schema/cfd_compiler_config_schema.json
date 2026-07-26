@@ -4,7 +4,6 @@
   "type": "object",
   "properties": {
     "engine_type": { "type": "string", "enum": ["gmsh", "fallback"] },
-    "solver_version": { "type": "string" },
     "tolerance": { "type": "number", "minimum": 0 },
     "max_element_size": { "type": "number", "positive": true },
     "min_element_size": { "type": "number", "positive": true },
