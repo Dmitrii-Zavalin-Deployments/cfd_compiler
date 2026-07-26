@@ -33,7 +33,7 @@ PHYSICAL_COLOR_MAP = {
 
 
 def render_spatial_location_map(output_path: Path, bounds: Tuple[float, ...]) -> None:
-    """Renders Spatial Location Map with high-contrast colored borders and low-alpha fill (Model 1)."""
+    """Renders Spatial Location Map with alternating multi-color 'shtrih' shared edges and low-alpha fill (Model 1)."""
     fig = plt.figure(figsize=(10, 7))
     ax = fig.add_subplot(111, projection="3d")
 
@@ -141,29 +141,55 @@ def _get_face_centroid(loc: str, bounds: Tuple[float, ...]) -> Tuple[float, floa
     return centroids.get(loc, (mid_x, mid_y, mid_z))
 
 
+def _draw_alternating_edge(
+    ax: Any,
+    p1: Tuple[float, float, float],
+    p2: Tuple[float, float, float],
+    color1: str,
+    color2: str,
+    num_segments: int = 12
+) -> None:
+    """Renders a shared edge as an alternating multi-color dashed segment ('shtrih')."""
+    p1_arr = np.array(p1)
+    p2_arr = np.array(p2)
+    t = np.linspace(0, 1, num_segments + 1)
+    
+    for i in range(num_segments):
+        seg_start = p1_arr + t[i] * (p2_arr - p1_arr)
+        seg_end = p1_arr + t[i + 1] * (p2_arr - p1_arr)
+        color = color1 if i % 2 == 0 else color2
+        
+        ax.plot3D(
+            [seg_start[0], seg_end[0]],
+            [seg_start[1], seg_end[1]],
+            [seg_start[2], seg_end[2]],
+            color=color,
+            linewidth=3.0,
+            alpha=1.0
+        )
+
+
 def _draw_domain_geometry(
     ax: Any,
     bounds: Tuple[float, ...],
     face_color_dict: Dict[str, str],
     mode: str
 ) -> None:
-    """Renders 3D bounding box faces with faint tint and crisp, fully opaque colored boundary edges."""
+    """Renders 3D bounding box faces with faint fills and alternating color 'shtrih' edges."""
     xmin, xmax, ymin, ymax, zmin, zmax = bounds
 
+    # 1. Render translucent face fills (no collection edge)
     plane_definitions = {
         "x_min": np.array([[xmin, ymin, zmin], [xmin, ymax, zmin], [xmin, ymax, zmax], [xmin, ymin, zmax]]),
         "x_max": np.array([[xmax, ymin, zmin], [xmax, ymax, zmin], [xmax, ymax, zmax], [xmax, ymin, zmax]]),
         "y_min": np.array([[xmin, ymin, zmin], [xmax, ymin, zmin], [xmax, ymin, zmax], [xmin, ymin, zmax]]),
         "y_max": np.array([[xmin, ymax, zmin], [xmax, ymax, zmin], [xmax, ymax, zmax], [xmin, ymax, zmax]]),
-        "z_min": np.array([[xmin, ymin, zmin], [xmax, ymin, zmin], [xmax, ymax, zmin], [xmin, ymax, zmin]]),
-        "z_max": np.array([[xmin, ymin, zmax], [xmax, ymin, zmax], [xmax, ymax, zmax], [xmin, ymax, zmax]]),
+        "z_min": np.array([[xmin, ymin, zmin], [xmax, ymin, zmin], [xmax, ymax, zmin], [xmin, ymin, zmin]]),
+        "z_max": np.array([[xmin, ymin, zmax], [xmax, ymin, zmax], [xmax, ymax, zmax], [xmin, ymin, zmax]]),
     }
 
-    # Render bounding box planes: low face opacity + distinct colored wireframe borders
     for loc, verts in plane_definitions.items():
         color = face_color_dict.get(loc, "#A9A9A9")
-
-        # 1. Faint translucent face fill without collection edges
         poly = Poly3DCollection(
             [verts],
             alpha=0.10,
@@ -172,17 +198,34 @@ def _draw_domain_geometry(
         )
         ax.add_collection3d(poly)
 
-        # 2. Crisp, fully opaque, bold colored perimeter edges
-        closed_verts = np.vstack([verts, verts[0]])
-        xs = closed_verts[:, 0]
-        ys = closed_verts[:, 1]
-        zs = closed_verts[:, 2]
-        ax.plot3D(xs, ys, zs, color=color, linewidth=3.0, alpha=1.0)
+    # 2. Define the 12 unique cuboid edges and their two intersecting faces
+    edges = [
+        # Parallel to X-axis (4 edges)
+        ((xmin, ymin, zmin), (xmax, ymin, zmin), "y_min", "z_min"),
+        ((xmin, ymax, zmin), (xmax, ymax, zmin), "y_max", "z_min"),
+        ((xmin, ymin, zmax), (xmax, ymin, zmax), "y_min", "z_max"),
+        ((xmin, ymax, zmax), (xmax, ymax, zmax), "y_max", "z_max"),
+        # Parallel to Y-axis (4 edges)
+        ((xmin, ymin, zmin), (xmin, ymax, zmin), "x_min", "z_min"),
+        ((xmax, ymin, zmin), (xmax, ymax, zmin), "x_max", "z_min"),
+        ((xmin, ymin, zmax), (xmin, ymax, zmax), "x_min", "z_max"),
+        ((xmax, ymin, zmax), (xmax, ymax, zmax), "x_max", "z_max"),
+        # Parallel to Z-axis (4 edges)
+        ((xmin, ymin, zmin), (xmin, ymin, zmax), "x_min", "y_min"),
+        ((xmax, ymin, zmin), (xmax, ymin, zmax), "x_max", "y_min"),
+        ((xmin, ymax, zmin), (xmin, ymax, zmax), "x_min", "y_max"),
+        ((xmax, ymax, zmin), (xmax, ymax, zmax), "x_max", "y_max"),
+    ]
 
-    # Dynamic derivation of internal cylinder geometry from domain bounds
+    for p1, p2, face1, face2 in edges:
+        c1 = face_color_dict.get(face1, "#A9A9A9")
+        c2 = face_color_dict.get(face2, "#A9A9A9")
+        _draw_alternating_edge(ax, p1, p2, c1, c2, num_segments=12)
+
+    # 3. Dynamic derivation of internal cylinder geometry from domain bounds
     span_x = xmax - xmin
     span_z = zmax - zmin
-    radius = min(span_x, span_z) * 0.375  # Dynamically scales relative to domain cross-section
+    radius = min(span_x, span_z) * 0.375
 
     cyl_center_x = (xmin + xmax) / 2.0
     cyl_center_z = (zmin + zmax) / 2.0
