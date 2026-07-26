@@ -3,10 +3,9 @@
   "title": "CFDCompilerConfig",
   "type": "object",
   "properties": {
-    "engine_type": { "type": "string", "enum": ["gmsh", "fallback"] },
     "tolerance": { "type": "number", "minimum": 0 },
-    "max_element_size": { "type": "number", "positive": true },
-    "min_element_size": { "type": "number", "positive": true },
+    "max_element_size": { "type": "number", "exclusiveMinimum": 0 },
+    "min_element_size": { "type": "number", "exclusiveMinimum": 0 },
     "boundary_condition_mapping": {
       "type": "array",
       "description": "Mapping rules linking spatial domain surfaces to physical boundary conditions.",
@@ -39,8 +38,6 @@
     }
   },
   "required": [
-    "engine_type",
-    "solver_version",
     "tolerance",
     "max_element_size",
     "min_element_size",

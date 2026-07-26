@@ -2,7 +2,8 @@
 CFD Compiler CLI Entry Point.
 
 Executes the CFD pre-flight compilation pipeline in headless environments,
-reading workspace inputs, orchestrating modular steps, and emitting schema-valid solver outputs.
+reading configuration and workspace inputs, validating schemas, and emitting solver outputs.
+Strictly enforces No-Default Policy across all user inputs and configuration parameters.
 """
 
 import argparse
@@ -33,10 +34,11 @@ logger = logging.getLogger("cfd_compiler")
 
 
 def validate_json(data: dict, schema_path: Path) -> None:
-    """Validates input or output dictionary against a JSON Schema file."""
+    """Validates input, config, or output dictionary against a JSON Schema file."""
     if not schema_path.exists():
-        logger.warning(f"Schema file not found at {schema_path}. Skipping validation.")
-        return
+        error_msg = f"CONSTITUTION VIOLATION: Schema file not found at {schema_path}"
+        logger.critical(error_msg)
+        raise FileNotFoundError(error_msg)
 
     try:
         with open(schema_path, "r", encoding="utf-8") as f:
@@ -72,6 +74,7 @@ def main() -> None:
 
     # 1. Path Resolution & Validation
     workspace_dir = Path(args.input_output_folder).resolve()
+    root_dir = Path(__file__).resolve().parent.parent
 
     if os.path.isabs(args.input_file_name):
         input_file_path = Path(args.input_file_name)
@@ -90,14 +93,43 @@ def main() -> None:
         logger.critical(error_msg)
         sys.exit(1)
 
-    # 2. Ingest Input (Supports JSON Contract or Direct STEP file fallback)
+    # 2. Load and Validate Configuration (`config/config.json`)
+    config_path = root_dir / "config" / "config.json"
+    config_schema_path = root_dir / "schema" / "cfd_compiler_config_schema.json"
+
+    if not config_path.exists():
+        error_msg = f"CONSTITUTION VIOLATION: Configuration file missing: {config_path}"
+        logger.critical(error_msg)
+        sys.exit(1)
+
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            config_data = json.load(f)
+        logger.info(f"Configuration loaded successfully from {config_path}")
+    except Exception as err:
+        logger.critical(f"Failure reading configuration file {config_path}: {err}")
+        sys.exit(1)
+
+    validate_json(config_data, config_schema_path)
+
+    # Strict No-Default Policy: Extract required keys directly or terminate process
+    try:
+        tolerance = config_data["tolerance"]
+        max_element_size = config_data["max_element_size"]
+        min_element_size = config_data["min_element_size"]
+        config_bc_mapping = config_data["boundary_condition_mapping"]
+    except KeyError as err:
+        logger.critical(f"CONSTITUTION VIOLATION: Required parameter missing in config.json: {err}")
+        sys.exit(1)
+
+    # 3. Ingest Input (Supports JSON Contract or Direct STEP file)
     try:
         if input_file_path.suffix.lower() in [".step", ".stp"]:
             input_data = {
                 "step_file_path": str(input_file_path),
-                "boundary_condition_mapping": []
+                "boundary_condition_mapping": config_bc_mapping
             }
-            logger.info(f"Detected direct STEP file input. Generated default input contract wrapper.")
+            logger.info("Detected direct STEP file input. Loaded boundary conditions from config.")
         else:
             with open(input_file_path, "r", encoding="utf-8") as f:
                 input_data = json.load(f)
@@ -106,21 +138,32 @@ def main() -> None:
         logger.critical(f"Failure reading input file {input_file_path}: {err}")
         sys.exit(1)
 
-    # Validate Input Schema if Schema Directory Exists and input is a JSON contract
-    schema_dir = workspace_dir / "schema"
+    # Validate Input Schema if JSON contract
+    schema_dir = root_dir / "schema"
     if input_file_path.suffix.lower() not in [".step", ".stp"]:
         validate_json(input_data, schema_dir / "cfd_compiler_input_schema.json")
 
-    # 3. Initialize Sovereign State Container
-    step_file_path = input_data.get("step_file_path", str(input_file_path))
-    bc_mapping = input_data.get("boundary_condition_mapping", [])
+    # Strict No-Default Policy: Extract input file parameters
+    if "step_file_path" in input_data:
+        step_file_path = input_data["step_file_path"]
+    else:
+        step_file_path = str(input_file_path)
 
+    if "boundary_condition_mapping" in input_data:
+        bc_mapping = input_data["boundary_condition_mapping"]
+    else:
+        bc_mapping = config_bc_mapping
+
+    # 4. Initialize Sovereign State Container with Config & Input Data
     container = SovereignContainer(
         step_file_path=step_file_path,
-        boundary_condition_mapping=bc_mapping
+        boundary_condition_mapping=bc_mapping,
+        tolerance=tolerance,
+        max_element_size=max_element_size,
+        min_element_size=min_element_size
     )
 
-    # 4. Orchestrate Pipeline Execution
+    # 5. Orchestrate Pipeline Execution
     logger.info("Executing CFD Pre-Flight Compilation Pipeline...")
     try:
         pipeline = Orchestrator([
@@ -134,7 +177,11 @@ def main() -> None:
         logger.critical(f"Pipeline execution faulted: {err}")
         sys.exit(1)
 
-    # 5. Assemble and Serialize Output Payload
+    # 6. Assemble and Serialize Output Payload
+    if container.boundary_conditions is None:
+        logger.critical("CONSTITUTION VIOLATION: Boundary conditions state uninitialized post-execution.")
+        sys.exit(1)
+
     results = {
         "status": container.status,
         "bounding_box": container.bbox,
@@ -146,7 +193,7 @@ def main() -> None:
                 "type": bc.type,
                 "values": bc.values
             }
-            for bc in (container.boundary_conditions or [])
+            for bc in container.boundary_conditions
         ]
     }
 

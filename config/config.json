@@ -1,0 +1,42 @@
+{
+  "tolerance": 1e-6,
+  "max_element_size": 500.0,
+  "min_element_size": 10.0,
+  "boundary_condition_mapping": [
+    {
+      "location": "x_min",
+      "type": "inflow",
+      "values": { "u": 2.5, "v": 0.0, "w": 0.0, "p": 101325.0 }
+    },
+    {
+      "location": "x_max",
+      "type": "outflow",
+      "values": { "u": 0.0, "v": 0.0, "w": 0.0, "p": 100000.0 }
+    },
+    {
+      "location": "wall",
+      "type": "no-slip",
+      "values": { "u": 0.0, "v": 0.0, "w": 0.0, "p": 0.0 }
+    },
+    {
+      "location": "y_min",
+      "type": "free-slip",
+      "values": { "u": 2.5, "v": 0.0, "w": 0.0, "p": 0.0 }
+    },
+    {
+      "location": "y_max",
+      "type": "free-slip",
+      "values": { "u": 2.5, "v": 0.0, "w": 0.0, "p": 0.0 }
+    },
+    {
+      "location": "z_min",
+      "type": "free-slip",
+      "values": { "u": 2.5, "v": 0.0, "w": 0.0, "p": 0.0 }
+    },
+    {
+      "location": "z_max",
+      "type": "free-slip",
+      "values": { "u": 2.5, "v": 0.0, "w": 0.0, "p": 0.0 }
+    }
+  ]
+}
