@@ -13,13 +13,13 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 # Color palette for Spatial Location Map (Model 1)
 SPATIAL_COLOR_MAP = {
-    "x_min": "#00FFFF",  # Light Cyan
-    "x_max": "#008080",  # Dark Teal
-    "y_min": "#90EE90",  # Soft Green
-    "y_max": "#228B22",  # Forest Green
-    "z_min": "#FFFFE0",  # Light Yellow
-    "z_max": "#FFA500",  # Warm Orange
-    "wall":  "#2F4F4F",  # Dark Charcoal / Solid Black
+    "x_min": "#FF0000",  # Bright Red
+    "x_max": "#0055FF",  # Vivid Royal Blue
+    "y_min": "#00FF66",  # Vibrant Mint / Spring Green
+    "y_max": "#800080",  # Solid Purple
+    "z_min": "#FFD700",  # Gold / Deep Yellow
+    "z_max": "#FF00FF",  # Bright Magenta
+    "wall":  "#1A252C",  # Deep Charcoal / Slate
 }
 
 # Color palette for Physical Boundary Map (Model 2)
