@@ -9,5 +9,5 @@
     }
   },
   "required": ["step_file_path"],
-  "additionalProperties": false
+  "additionalProperties": true
 }
