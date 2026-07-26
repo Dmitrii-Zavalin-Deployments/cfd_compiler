@@ -50,14 +50,14 @@ def render_spatial_location_map(output_path: Path, bounds: Tuple[float, ...]) ->
         handles=legend_patches,
         title="Spatial Location",
         loc="center left",
-        bbox_to_anchor=(1.05, 0.5),
+        bounding_box_to_anchor=(1.05, 0.5),
         fontsize=9,
         title_fontsize=10,
         frameon=True
     )
 
     plt.tight_layout()
-    plt.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.savefig(output_path, dpi=150, bounding_box_inches="tight")
     plt.close(fig)
 
 
@@ -125,14 +125,14 @@ def render_physical_boundary_map(
         handles=legend_patches,
         title="Boundary Condition Type",
         loc="center left",
-        bbox_to_anchor=(1.05, 0.5),
+        bounding_box_to_anchor=(1.05, 0.5),
         fontsize=9,
         title_fontsize=10,
         frameon=True
     )
 
     plt.tight_layout()
-    plt.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.savefig(output_path, dpi=150, bounding_box_inches="tight")
     plt.close(fig)
 
 

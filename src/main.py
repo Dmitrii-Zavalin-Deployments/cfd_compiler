@@ -214,6 +214,7 @@ def main() -> None:
     }
 
     output_payload = {
+        "config": config_data,
         "input": input_data,
         "results": results
     }
