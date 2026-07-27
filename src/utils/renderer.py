@@ -1,14 +1,14 @@
 from pathlib import Path
 from typing import Any
 
-# Force non-interactive Agg backend for headless rendering
 import matplotlib
-import numpy as np
-
-matplotlib.use("Agg")
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
+import numpy as np
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+
+# Force non-interactive Agg backend for headless rendering
+matplotlib.use("Agg")
 
 # Color palette for Raw STEP Geometry Preview
 CAD_COLOR_MAP = {
@@ -47,7 +47,7 @@ def render_step_snapshot(output_path: Path, bounds: tuple[float, ...]) -> None:
     fig = plt.figure(figsize=(10, 7))
     ax = fig.add_subplot(111, projection="3d")
 
-    _draw_domain_geometry(ax, bounds, face_color_dict=CAD_COLOR_MAP, mode="cad")
+    _draw_domain_geometry(ax, bounds, face_color_dict=CAD_COLOR_MAP)
 
     ax.set_title("3D Visual QA - Raw STEP Geometry", fontsize=12, fontweight="bold")
     ax.set_xlabel("X (mm)")
@@ -77,7 +77,7 @@ def render_spatial_location_map(output_path: Path, bounds: tuple[float, ...]) ->
     fig = plt.figure(figsize=(10, 7))
     ax = fig.add_subplot(111, projection="3d")
 
-    _draw_domain_geometry(ax, bounds, face_color_dict=SPATIAL_COLOR_MAP, mode="spatial")
+    _draw_domain_geometry(ax, bounds, face_color_dict=SPATIAL_COLOR_MAP)
 
     ax.set_title("3D Visual QA - Spatial Location Map", fontsize=12, fontweight="bold")
     ax.set_xlabel("X (mm)")
@@ -129,7 +129,7 @@ def render_physical_boundary_map(
             raise KeyError("CONSTITUTION VIOLATION: 'no-slip' type missing from PHYSICAL_COLOR_MAP. Execution halted.")
         face_colors["wall"] = PHYSICAL_COLOR_MAP["no-slip"]
 
-    _draw_domain_geometry(ax, bounds, face_color_dict=face_colors, mode="physical")
+    _draw_domain_geometry(ax, bounds, face_color_dict=face_colors)
 
     # Dynamic 3D velocity vector overlay for inflow
     for loc, btype in location_to_type.items():
@@ -233,7 +233,6 @@ def _draw_domain_geometry(
     ax: Any,
     bounds: tuple[float, ...],
     face_color_dict: dict[str, str],
-    mode: str
 ) -> None:
     """Renders 3D bounding box faces with faint fills and alternating color 'shtrih' edges strictly without fallbacks."""
     xmin, xmax, ymin, ymax, zmin, zmax = bounds
