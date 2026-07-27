@@ -56,7 +56,7 @@ def mock_schemas_and_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
             "tolerance": {"type": "number"},
             "max_element_size": {"type": "number"},
             "min_element_size": {"type": "number"},
-            "boundary_condition_mapping": {"type": "object"},
+            "boundary_condition_mapping": {"type": "array"},
         },
         "required": [
             "tolerance",
@@ -76,7 +76,7 @@ def mock_schemas_and_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         "type": "object",
         "properties": {
             "step_file_path": {"type": "string"},
-            "boundary_condition_mapping": {"type": "object"},
+            "boundary_condition_mapping": {"type": "array"},
         },
         "required": ["step_file_path", "boundary_condition_mapping"],
     }
@@ -123,7 +123,7 @@ def mock_schemas_and_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     # 6. Valid Input JSON derived from dummy_in schema fixture
     valid_input = dummy_in().override(
         step_file_path=str(step_file),
-        boundary_condition_mapping={"inlet": "velocity_inlet"},
+        boundary_condition_mapping=[{"location": "x_min", "type": "inflow", "values": {"u": 1.0, "v": 0.0, "w": 0.0}}],
     )
     input_json_path = workspace_dir / "input_contract.json"
     with open(input_json_path, "w", encoding="utf-8") as f:
