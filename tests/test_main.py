@@ -5,17 +5,15 @@ schema validations, error traps, and strict No-Default policy checks.
 """
 
 import json
-import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict
-from unittest.mock import MagicMock, patch
+from typing import Any
+from unittest.mock import patch
 
 import pytest
 from jsonschema import ValidationError
 
 from src.main import main, validate_json
-
 
 # --- MOCK DATA STRUCTURES ---
 
@@ -23,7 +21,7 @@ from src.main import main, validate_json
 class DummyBoundaryCondition:
     location: str
     type: str
-    values: Dict[str, Any]
+    values: dict[str, Any]
 
 
 # --- FIXTURES ---

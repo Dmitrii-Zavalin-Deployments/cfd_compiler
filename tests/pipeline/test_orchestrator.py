@@ -8,14 +8,13 @@ Validates:
 - Fault/exception propagation through step execution.
 """
 
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 
 import pytest
 
 from interfaces.base_interface import StepInterface
 from src.pipeline.orchestrator import Orchestrator
 from src.state.cfd_compiler_state import SovereignContainer
-
 
 # --- FIXTURES ---
 
