@@ -15,13 +15,18 @@ import pytest
 from interfaces.base_interface import StepInterface
 from src.pipeline.orchestrator import Orchestrator
 from src.state.cfd_compiler_state import SovereignContainer
+from tests.conftest import dummy_in, dummy_out
 
 # --- FIXTURES ---
 
+
 @pytest.fixture
 def mock_container() -> SovereignContainer:
-    """Provides a mocked SovereignContainer instance for state isolation."""
-    return MagicMock(spec=SovereignContainer)
+    """Provides a mocked SovereignContainer instance pre-populated with canonical dummy state."""
+    container = MagicMock(spec=SovereignContainer)
+    container.input_data = dummy_in()
+    container.results = dummy_out()
+    return container
 
 
 @pytest.fixture
@@ -33,6 +38,7 @@ def mock_step() -> StepInterface:
 
 
 # --- TESTS: INITIALIZATION & SLOTS ---
+
 
 def test_orchestrator_initialization():
     """Verifies that Orchestrator correctly stores step sequences upon initialization."""
@@ -53,11 +59,15 @@ def test_orchestrator_slots_enforcement():
     """
     orchestrator = Orchestrator(steps=[])
 
-    with pytest.raises(AttributeError, match="'Orchestrator' object has no attribute 'dynamic_attr'"):
+    with pytest.raises(
+        AttributeError,
+        match="'Orchestrator' object has no attribute 'dynamic_attr'",
+    ):
         orchestrator.dynamic_attr = "unauthorized_state"  # type: ignore
 
 
 # --- TESTS: PIPELINE EXECUTION ---
+
 
 def test_orchestrator_run_empty_steps(mock_container: SovereignContainer):
     """
@@ -109,10 +119,10 @@ def test_orchestrator_step_exception_propagation(mock_container: SovereignContai
     """
     step_1 = MagicMock(spec=StepInterface)
     step_2 = MagicMock(spec=StepInterface)
-    
+
     # Step 2 raises a runtime error
     step_2.execute.side_effect = RuntimeError("CFD Solver Divergence Error")
-    
+
     step_3 = MagicMock(spec=StepInterface)
 
     orchestrator = Orchestrator(steps=[step_1, step_2, step_3])

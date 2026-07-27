@@ -18,6 +18,7 @@ from src.utils.renderer import (
     render_spatial_location_map,
     render_step_snapshot,
 )
+from tests.conftest import dummy_in, dummy_out
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +35,12 @@ def cleanup_figures():
 def test_render_step_snapshot_success(tmp_path: Path) -> None:
     """Verifies raw STEP geometry preview snapshot generation."""
     output_file = tmp_path / "step_snapshot.png"
-    logger.info("Executing render_step_snapshot verification -> %s", output_file)
+    d_in = dummy_in()
+    logger.info(
+        "Executing render_step_snapshot verification for %s -> %s",
+        d_in["step_file_path"],
+        output_file,
+    )
 
     render_step_snapshot(output_file, TEST_BOUNDS)
 
@@ -54,45 +60,45 @@ def test_render_spatial_location_map_success(tmp_path: Path) -> None:
 
 
 def test_render_physical_boundary_map_full_success(tmp_path: Path) -> None:
-    """Verifies Physical Boundary Map (Model 2) with active velocity vectors."""
+    """Verifies Physical Boundary Map (Model 2) with active velocity vectors from dummy_out."""
     output_file = tmp_path / "physical_map.png"
+    d_out = dummy_out()
+
     location_to_type = {
-        "x_min": "inflow",
-        "x_max": "outflow",
-        "y_min": "no-slip",
-        "y_max": "free-slip",
-        "z_min": "pressure",
-        "z_max": "no-slip",
+        bc["location"]: bc["type"] for bc in d_out["boundary_conditions"]
     }
     location_to_values = {
-        "x_min": {"u": 5.0, "v": 0.0, "w": 0.0},
+        bc["location"]: bc["values"] for bc in d_out["boundary_conditions"]
     }
 
     logger.info("Executing render_physical_boundary_map full success verification")
-    render_physical_boundary_map(output_file, TEST_BOUNDS, location_to_type, location_to_values)
+    render_physical_boundary_map(
+        output_file, TEST_BOUNDS, location_to_type, location_to_values
+    )
 
     assert output_file.exists()
     assert output_file.stat().st_size > 0
 
 
 def test_render_physical_boundary_map_explicit_wall(tmp_path: Path) -> None:
-    """Verifies Physical Boundary Map execution when 'wall' is explicitly present in location_to_type."""
+    """Verifies Physical Boundary Map execution when 'wall' is present in dummy_out contract."""
     output_file = tmp_path / "physical_map_explicit_wall.png"
+    d_out = dummy_out()
+
     location_to_type = {
-        "x_min": "inflow",
-        "x_max": "outflow",
-        "y_min": "no-slip",
-        "y_max": "free-slip",
-        "z_min": "pressure",
-        "z_max": "no-slip",
-        "wall": "no-slip",
+        bc["location"]: bc["type"] for bc in d_out["boundary_conditions"]
     }
     location_to_values = {
-        "x_min": {"u": 1.0, "v": 1.0, "w": 0.0},
+        bc["location"]: bc["values"] for bc in d_out["boundary_conditions"]
     }
 
+    # Verify 'wall' boundary condition exists in standard schema
+    assert "wall" in location_to_type
+
     logger.info("Executing render_physical_boundary_map with explicit 'wall'")
-    render_physical_boundary_map(output_file, TEST_BOUNDS, location_to_type, location_to_values)
+    render_physical_boundary_map(
+        output_file, TEST_BOUNDS, location_to_type, location_to_values
+    )
 
     assert output_file.exists()
 
@@ -100,11 +106,16 @@ def test_render_physical_boundary_map_explicit_wall(tmp_path: Path) -> None:
 def test_render_physical_boundary_map_zero_velocity(tmp_path: Path) -> None:
     """Verifies quiver scaling branch when velocity magnitude is zero (scale = 1.0)."""
     output_file = tmp_path / "physical_map_zero_vel.png"
-    location_to_type = {"x_min": "inflow"}
-    location_to_values = {"x_min": {"u": 0.0, "v": 0.0, "w": 0.0}}
+    d_out = dummy_out()
+    inflow_bc = next(bc for bc in d_out["boundary_conditions"] if bc["type"] == "inflow")
+
+    location_to_type = {inflow_bc["location"]: inflow_bc["type"]}
+    location_to_values = {inflow_bc["location"]: {"u": 0.0, "v": 0.0, "w": 0.0}}
 
     logger.info("Executing render_physical_boundary_map with zero magnitude inflow")
-    render_physical_boundary_map(output_file, TEST_BOUNDS, location_to_type, location_to_values)
+    render_physical_boundary_map(
+        output_file, TEST_BOUNDS, location_to_type, location_to_values
+    )
 
     assert output_file.exists()
 
@@ -112,11 +123,16 @@ def test_render_physical_boundary_map_zero_velocity(tmp_path: Path) -> None:
 def test_render_physical_boundary_map_inflow_not_in_values(tmp_path: Path) -> None:
     """Verifies skip condition when 'inflow' location is missing from location_to_values."""
     output_file = tmp_path / "physical_map_no_values.png"
-    location_to_type = {"x_min": "inflow"}
+    d_out = dummy_out()
+    inflow_bc = next(bc for bc in d_out["boundary_conditions"] if bc["type"] == "inflow")
+
+    location_to_type = {inflow_bc["location"]: inflow_bc["type"]}
     location_to_values = {}
 
     logger.info("Executing render_physical_boundary_map with unmapped inflow location")
-    render_physical_boundary_map(output_file, TEST_BOUNDS, location_to_type, location_to_values)
+    render_physical_boundary_map(
+        output_file, TEST_BOUNDS, location_to_type, location_to_values
+    )
 
     assert output_file.exists()
 
@@ -129,7 +145,9 @@ def test_render_physical_boundary_map_unknown_type_raises(tmp_path: Path) -> Non
 
     logger.info("Verifying KeyError on unknown boundary type")
     with pytest.raises(KeyError, match="CONSTITUTION VIOLATION: Unknown boundary type"):
-        render_physical_boundary_map(output_file, TEST_BOUNDS, location_to_type, location_to_values)
+        render_physical_boundary_map(
+            output_file, TEST_BOUNDS, location_to_type, location_to_values
+        )
 
 
 def test_render_physical_boundary_map_missing_noslip_raises(
@@ -137,30 +155,47 @@ def test_render_physical_boundary_map_missing_noslip_raises(
 ) -> None:
     """Verifies KeyError raises when 'no-slip' is missing from PHYSICAL_COLOR_MAP."""
     output_file = tmp_path / "fail.png"
-    location_to_type = {"x_min": "inflow"}
-    location_to_values = {"x_min": {"u": 1.0, "v": 0.0, "w": 0.0}}
+    d_out = dummy_out()
+    inflow_bc = next(bc for bc in d_out["boundary_conditions"] if bc["type"] == "inflow")
+
+    location_to_type = {inflow_bc["location"]: inflow_bc["type"]}
+    location_to_values = {inflow_bc["location"]: inflow_bc["values"]}
 
     monkeypatch.delitem(PHYSICAL_COLOR_MAP, "no-slip")
 
     logger.info("Verifying KeyError when 'no-slip' is missing from PHYSICAL_COLOR_MAP")
-    with pytest.raises(KeyError, match="CONSTITUTION VIOLATION: 'no-slip' type missing"):
-        render_physical_boundary_map(output_file, TEST_BOUNDS, location_to_type, location_to_values)
+    with pytest.raises(
+        KeyError, match="CONSTITUTION VIOLATION: 'no-slip' type missing"
+    ):
+        render_physical_boundary_map(
+            output_file, TEST_BOUNDS, location_to_type, location_to_values
+        )
 
 
-def test_render_physical_boundary_map_inflow_missing_components_raises(tmp_path: Path) -> None:
+def test_render_physical_boundary_map_inflow_missing_components_raises(
+    tmp_path: Path,
+) -> None:
     """Verifies KeyError raises when inflow values lack u, v, or w."""
     output_file = tmp_path / "fail.png"
-    location_to_type = {"x_min": "inflow"}
-    location_to_values = {"x_min": {"u": 1.0}}  # Missing 'v' and 'w'
+    d_out = dummy_out()
+    inflow_bc = next(bc for bc in d_out["boundary_conditions"] if bc["type"] == "inflow")
+
+    location_to_type = {inflow_bc["location"]: inflow_bc["type"]}
+    location_to_values = {
+        inflow_bc["location"]: {"u": inflow_bc["values"]["u"]}
+    }  # Missing 'v' and 'w'
 
     logger.info("Verifying KeyError on missing velocity components")
     with pytest.raises(KeyError, match="missing required velocity components"):
-        render_physical_boundary_map(output_file, TEST_BOUNDS, location_to_type, location_to_values)
+        render_physical_boundary_map(
+            output_file, TEST_BOUNDS, location_to_type, location_to_values
+        )
 
 
 def test_get_face_centroid_all_locations() -> None:
-    """Verifies centroid coordinates for all valid domain faces."""
-    locations = ["x_min", "x_max", "y_min", "y_max", "z_min", "z_max", "wall"]
+    """Verifies centroid coordinates for all valid domain faces present in dummy_out schema."""
+    d_out = dummy_out()
+    locations = [bc["location"] for bc in d_out["boundary_conditions"]]
 
     for loc in locations:
         centroid = _get_face_centroid(loc, TEST_BOUNDS)
@@ -182,7 +217,9 @@ def test_draw_domain_geometry_missing_face_color_raises() -> None:
     incomplete_map = {"x_min": "#000000"}
 
     logger.info("Verifying KeyError on incomplete face_color_dict")
-    with pytest.raises(KeyError, match="CONSTITUTION VIOLATION: Missing face color for location"):
+    with pytest.raises(
+        KeyError, match="CONSTITUTION VIOLATION: Missing face color for location"
+    ):
         _draw_domain_geometry(ax, TEST_BOUNDS, incomplete_map)
 
 
@@ -200,7 +237,9 @@ def test_draw_domain_geometry_missing_wall_color_raises() -> None:
     }
 
     logger.info("Verifying KeyError on missing 'wall' face color")
-    with pytest.raises(KeyError, match="CONSTITUTION VIOLATION: Missing face color for 'wall'"):
+    with pytest.raises(
+        KeyError, match="CONSTITUTION VIOLATION: Missing face color for 'wall'"
+    ):
         _draw_domain_geometry(ax, TEST_BOUNDS, colors_without_wall)
 
 
@@ -210,6 +249,8 @@ def test_draw_alternating_edge_direct() -> None:
     ax = fig.add_subplot(111, projection="3d")
 
     logger.info("Verifying direct edge segment plotting")
-    _draw_alternating_edge(ax, (0, 0, 0), (10, 0, 0), "#FF0000", "#00FF00", num_segments=4)
+    _draw_alternating_edge(
+        ax, (0, 0, 0), (10, 0, 0), "#FF0000", "#00FF00", num_segments=4
+    )
 
     assert len(ax.lines) == 4

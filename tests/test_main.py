@@ -14,6 +14,7 @@ import pytest
 from jsonschema import ValidationError
 
 from src.main import main, validate_json
+from tests.conftest import dummy_in, dummy_out
 
 # --- MOCK DATA STRUCTURES ---
 
@@ -119,11 +120,11 @@ def mock_schemas_and_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         "ISO-10303-21 HEADER; ENDSEC; DATA; ENDSEC; END-ISO-10303-21;"
     )
 
-    # 6. Valid Input JSON
-    valid_input = {
-        "step_file_path": str(step_file),
-        "boundary_condition_mapping": {"inlet": "velocity_inlet"},
-    }
+    # 6. Valid Input JSON derived from dummy_in schema fixture
+    valid_input = dummy_in().override(
+        step_file_path=str(step_file),
+        boundary_condition_mapping={"inlet": "velocity_inlet"},
+    )
     input_json_path = workspace_dir / "input_contract.json"
     with open(input_json_path, "w", encoding="utf-8") as f:
         json.dump(valid_input, f)
@@ -362,23 +363,28 @@ def test_main_step_file_input_branch_success(
     ]
     monkeypatch.setattr("sys.argv", test_args)
 
+    d_out = dummy_out()
+
     def mock_run(self, container):
         container.boundary_conditions = [
             DummyBoundaryCondition(
-                location="inlet", type="velocity_inlet", values={"u": 1.0}
+                location=bc["location"],
+                type=bc["type"],
+                values=bc["values"],
             )
+            for bc in d_out["boundary_conditions"]
         ]
-        container.status = "success"
+        container.status = d_out["status"]
         container.bounding_box = {"min": [0, 0, 0], "max": [1, 1, 1]}
-        container.compiled_cells_count = 100
-        container.artifacts_generated = ["mesh.vtk"]
+        container.compiled_cells_count = d_out["compiled_cells_count"]
+        container.artifacts_generated = d_out["artifacts_generated"]
 
     with patch("src.main.Orchestrator.run", side_effect=mock_run, autospec=True):
         main()
 
     assert output_path.exists()
     payload = json.loads(output_path.read_text(encoding="utf-8"))
-    assert payload["results"]["status"] == "success"
+    assert payload["results"]["status"] == d_out["status"]
 
 
 # --- TESTS: PIPELINE EXECUTION & POST-PROCESSING ---
@@ -453,11 +459,16 @@ def test_main_output_write_failure_exits(
     ]
     monkeypatch.setattr("sys.argv", test_args)
 
+    d_out = dummy_out()
+
     def mock_run(self, container):
         container.boundary_conditions = [
             DummyBoundaryCondition(
-                location="inlet", type="velocity_inlet", values={"u": 1.0}
+                location=bc["location"],
+                type=bc["type"],
+                values=bc["values"],
             )
+            for bc in d_out["boundary_conditions"]
         ]
 
     with patch(
@@ -493,11 +504,16 @@ def test_main_non_success_status_exits(
     ]
     monkeypatch.setattr("sys.argv", test_args)
 
+    d_out = dummy_out()
+
     def mock_run_partial(self, container):
         container.boundary_conditions = [
             DummyBoundaryCondition(
-                location="inlet", type="velocity_inlet", values={"u": 1.0}
+                location=bc["location"],
+                type=bc["type"],
+                values=bc["values"],
             )
+            for bc in d_out["boundary_conditions"]
         ]
         container.status = "partial_failure"
 
@@ -530,16 +546,21 @@ def test_main_absolute_paths_success(
     ]
     monkeypatch.setattr("sys.argv", test_args)
 
+    d_out = dummy_out()
+
     def mock_run_success(self, container):
         container.boundary_conditions = [
             DummyBoundaryCondition(
-                location="wall", type="no_slip", values={}
+                location=bc["location"],
+                type=bc["type"],
+                values=bc["values"],
             )
+            for bc in d_out["boundary_conditions"]
         ]
-        container.status = "success"
+        container.status = d_out["status"]
         container.bounding_box = {"min": [0, 0, 0], "max": [2, 2, 2]}
-        container.compiled_cells_count = 500
-        container.artifacts_generated = ["cfd_mesh.cgns"]
+        container.compiled_cells_count = d_out["compiled_cells_count"]
+        container.artifacts_generated = d_out["artifacts_generated"]
 
     with patch(
         "src.main.Orchestrator.run", side_effect=mock_run_success, autospec=True
@@ -548,8 +569,11 @@ def test_main_absolute_paths_success(
 
     assert output_json.exists()
     payload = json.loads(output_json.read_text(encoding="utf-8"))
-    assert payload["results"]["status"] == "success"
-    assert payload["results"]["compiled_cells_count"] == 500
+    assert payload["results"]["status"] == d_out["status"]
+    assert (
+        payload["results"]["compiled_cells_count"]
+        == d_out["compiled_cells_count"]
+    )
 
 
 def test_main_relative_paths_success(
@@ -570,16 +594,21 @@ def test_main_relative_paths_success(
     ]
     monkeypatch.setattr("sys.argv", test_args)
 
+    d_out = dummy_out()
+
     def mock_run_success(self, container):
         container.boundary_conditions = [
             DummyBoundaryCondition(
-                location="outlet", type="pressure_outlet", values={"p": 0.0}
+                location=bc["location"],
+                type=bc["type"],
+                values=bc["values"],
             )
+            for bc in d_out["boundary_conditions"]
         ]
-        container.status = "success"
+        container.status = d_out["status"]
         container.bounding_box = {"min": [0, 0, 0], "max": [1, 1, 1]}
-        container.compiled_cells_count = 250
-        container.artifacts_generated = []
+        container.compiled_cells_count = d_out["compiled_cells_count"]
+        container.artifacts_generated = d_out["artifacts_generated"]
 
     with patch(
         "src.main.Orchestrator.run", side_effect=mock_run_success, autospec=True
@@ -588,4 +617,4 @@ def test_main_relative_paths_success(
 
     assert output_json.exists()
     payload = json.loads(output_json.read_text(encoding="utf-8"))
-    assert payload["results"]["status"] == "success"
+    assert payload["results"]["status"] == d_out["status"]

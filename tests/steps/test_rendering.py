@@ -21,8 +21,10 @@ import pytest
 
 from src.state.cfd_compiler_state import BoundaryConditionState, SovereignContainer
 from src.steps.rendering import RenderingStep
+from tests.conftest import dummy_in, dummy_out
 
 # --- FIXTURES ---
+
 
 @pytest.fixture
 def rendering_step() -> RenderingStep:
@@ -32,33 +34,42 @@ def rendering_step() -> RenderingStep:
 
 @pytest.fixture
 def valid_container(tmp_path: Path) -> SovereignContainer:
-    """Provides a mock SovereignContainer instance initialized with valid state."""
-    step_file = tmp_path / "workspace" / "test_model.step"
+    """Provides a mock SovereignContainer instance initialized with valid state from conftest schemas."""
+    d_in = dummy_in()
+    d_out = dummy_out()
+
+    step_filename = Path(d_in["step_file_path"]).name
+    step_file = tmp_path / "workspace" / step_filename
     step_file.parent.mkdir(parents=True, exist_ok=True)
     step_file.write_text("HEADER; DATA; ENDSEC;")
+
+    # Construct BoundaryConditionState instances from dummy_out schema samples
+    bc_states = [
+        BoundaryConditionState(
+            location=bc["location"],
+            type=bc["type"],
+            values=bc["values"],
+        )
+        for bc in d_out["boundary_conditions"][:2]
+    ]
 
     container = MagicMock(spec=SovereignContainer)
     container.step_file_path = str(step_file)
     container.bounding_box = (-10.0, 10.0, -20.0, 20.0, -30.0, 30.0)
-    container.boundary_conditions = [
-        BoundaryConditionState(
-            location="inlet_face",
-            type="velocity_inlet",
-            values={"u": 10.0, "v": 0.0, "w": 0.0},
-        ),
-        BoundaryConditionState(
-            location="outlet_face",
-            type="pressure_outlet",
-            values={"p": 0.0},
-        ),
-    ]
+    container.boundary_conditions = bc_states
     container.artifacts_generated = None
     return container
 
 
 # --- TESTS: HAPPY PATHS ---
 
-def test_rendering_step_success(rendering_step: RenderingStep, valid_container: SovereignContainer, monkeypatch, caplog):
+
+def test_rendering_step_success(
+    rendering_step: RenderingStep,
+    valid_container: SovereignContainer,
+    monkeypatch,
+    caplog,
+):
     """
     Verifies successful execution of RenderingStep, invoking all three renderer 
     functions with correct parameters and updating generated artifacts state.
@@ -67,9 +78,15 @@ def test_rendering_step_success(rendering_step: RenderingStep, valid_container: 
     mock_render_spatial = MagicMock()
     mock_render_physical = MagicMock()
 
-    monkeypatch.setattr("src.steps.rendering.render_step_snapshot", mock_render_snapshot)
-    monkeypatch.setattr("src.steps.rendering.render_spatial_location_map", mock_render_spatial)
-    monkeypatch.setattr("src.steps.rendering.render_physical_boundary_map", mock_render_physical)
+    monkeypatch.setattr(
+        "src.steps.rendering.render_step_snapshot", mock_render_snapshot
+    )
+    monkeypatch.setattr(
+        "src.steps.rendering.render_spatial_location_map", mock_render_spatial
+    )
+    monkeypatch.setattr(
+        "src.steps.rendering.render_physical_boundary_map", mock_render_physical
+    )
 
     expected_workspace = Path(valid_container.step_file_path).parent.resolve()
 
@@ -88,18 +105,20 @@ def test_rendering_step_success(rendering_step: RenderingStep, valid_container: 
         bounds=valid_container.bounding_box,
     )
 
+    # Extract dynamic maps expected from fixture boundary conditions
+    expected_location_to_type = {
+        bc.location: bc.type for bc in valid_container.boundary_conditions
+    }
+    expected_location_to_values = {
+        bc.location: bc.values for bc in valid_container.boundary_conditions
+    }
+
     # Validate physical map renderer call
     mock_render_physical.assert_called_once_with(
         output_path=expected_workspace / "physical_boundary_map.png",
         bounds=valid_container.bounding_box,
-        location_to_type={
-            "inlet_face": "velocity_inlet",
-            "outlet_face": "pressure_outlet",
-        },
-        location_to_values={
-            "inlet_face": {"u": 10.0, "v": 0.0, "w": 0.0},
-            "outlet_face": {"p": 0.0},
-        },
+        location_to_type=expected_location_to_type,
+        location_to_values=expected_location_to_values,
     )
 
     # Validate container artifacts update
@@ -127,14 +146,21 @@ def test_rendering_step_empty_boundary_conditions(
     mock_render_spatial = MagicMock()
     mock_render_physical = MagicMock()
 
-    monkeypatch.setattr("src.steps.rendering.render_step_snapshot", mock_render_snapshot)
-    monkeypatch.setattr("src.steps.rendering.render_spatial_location_map", mock_render_spatial)
-    monkeypatch.setattr("src.steps.rendering.render_physical_boundary_map", mock_render_physical)
+    monkeypatch.setattr(
+        "src.steps.rendering.render_step_snapshot", mock_render_snapshot
+    )
+    monkeypatch.setattr(
+        "src.steps.rendering.render_spatial_location_map", mock_render_spatial
+    )
+    monkeypatch.setattr(
+        "src.steps.rendering.render_physical_boundary_map", mock_render_physical
+    )
 
     rendering_step.execute(valid_container)
 
     mock_render_physical.assert_called_once_with(
-        output_path=Path(valid_container.step_file_path).parent.resolve() / "physical_boundary_map.png",
+        output_path=Path(valid_container.step_file_path).parent.resolve()
+        / "physical_boundary_map.png",
         bounds=valid_container.bounding_box,
         location_to_type={},
         location_to_values={},
@@ -148,6 +174,7 @@ def test_rendering_step_empty_boundary_conditions(
 
 # --- TESTS: CONSTITUTION VIOLATIONS & EXCEPTIONS ---
 
+
 def test_rendering_step_uninitialized_step_file_path(
     rendering_step: RenderingStep, valid_container: SovereignContainer
 ):
@@ -158,7 +185,7 @@ def test_rendering_step_uninitialized_step_file_path(
 
     with pytest.raises(
         ValueError,
-        match=r"CONSTITUTION VIOLATION: 'step_file_path' is uninitialized\. Execution halted\."
+        match=r"CONSTITUTION VIOLATION: 'step_file_path' is uninitialized\. Execution halted\.",
     ):
         rendering_step.execute(valid_container)
 
@@ -173,7 +200,7 @@ def test_rendering_step_uninitialized_bounding_box(
 
     with pytest.raises(
         ValueError,
-        match=r"CONSTITUTION VIOLATION: 'bounding_box' is uninitialized\. IngestionStep must run before RenderingStep\. Execution halted\."
+        match=r"CONSTITUTION VIOLATION: 'bounding_box' is uninitialized\. IngestionStep must run before RenderingStep\. Execution halted\.",
     ):
         rendering_step.execute(valid_container)
 
@@ -188,14 +215,16 @@ def test_rendering_step_uninitialized_boundary_conditions(
 
     with pytest.raises(
         ValueError,
-        match=r"CONSTITUTION VIOLATION: 'boundary_conditions' is uninitialized\. BoundaryConditionsStep must run before RenderingStep\. Execution halted\."
+        match=r"CONSTITUTION VIOLATION: 'boundary_conditions' is uninitialized\. BoundaryConditionsStep must run before RenderingStep\. Execution halted\.",
     ):
         rendering_step.execute(valid_container)
 
 
 @pytest.mark.parametrize("invalid_location", [None, ""])
 def test_rendering_step_bc_missing_location(
-    rendering_step: RenderingStep, valid_container: SovereignContainer, invalid_location
+    rendering_step: RenderingStep,
+    valid_container: SovereignContainer,
+    invalid_location,
 ):
     """
     Verifies that a ValueError is raised when a BoundaryConditionState is missing 'location' (Lines 52-55).
@@ -209,7 +238,7 @@ def test_rendering_step_bc_missing_location(
 
     with pytest.raises(
         ValueError,
-        match=r"CONSTITUTION VIOLATION: Boundary condition state at index 0 missing 'location'\. Execution halted\."
+        match=r"CONSTITUTION VIOLATION: Boundary condition state at index 0 missing 'location'\. Execution halted\.",
     ):
         rendering_step.execute(valid_container)
 
@@ -230,7 +259,7 @@ def test_rendering_step_bc_missing_type(
 
     with pytest.raises(
         ValueError,
-        match=r"CONSTITUTION VIOLATION: Boundary condition state at index 0 missing 'type'\. Execution halted\."
+        match=r"CONSTITUTION VIOLATION: Boundary condition state at index 0 missing 'type'\. Execution halted\.",
     ):
         rendering_step.execute(valid_container)
 
@@ -250,16 +279,20 @@ def test_rendering_step_bc_missing_values(
 
     with pytest.raises(
         ValueError,
-        match=r"CONSTITUTION VIOLATION: Boundary condition state at index 0 missing 'values'\. Execution halted\."
+        match=r"CONSTITUTION VIOLATION: Boundary condition state at index 0 missing 'values'\. Execution halted\.",
     ):
         rendering_step.execute(valid_container)
 
 
 # --- TESTS: MEMORY & SLOTS ENFORCEMENT ---
 
+
 def test_rendering_step_slots_enforcement(rendering_step: RenderingStep):
     """
     Verifies that RenderingStep enforces __slots__ = () preventing dynamic attribute allocation.
     """
-    with pytest.raises(AttributeError, match="'RenderingStep' object has no attribute 'dynamic_attr'"):
+    with pytest.raises(
+        AttributeError,
+        match="'RenderingStep' object has no attribute 'dynamic_attr'",
+    ):
         rendering_step.dynamic_attr = "unauthorized"  # type: ignore

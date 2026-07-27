@@ -21,8 +21,10 @@ import pytest
 import src.steps.ingestion
 from src.state.cfd_compiler_state import SovereignContainer
 from src.steps.ingestion import IngestionStep
+from tests.conftest import dummy_in
 
 # --- FIXTURES ---
+
 
 @pytest.fixture
 def ingestion_step() -> IngestionStep:
@@ -32,8 +34,9 @@ def ingestion_step() -> IngestionStep:
 
 @pytest.fixture
 def mock_container(tmp_path: Path) -> SovereignContainer:
-    """Provides a mock SovereignContainer instance with a valid temporary STEP file path."""
-    step_file = tmp_path / "test_geometry.step"
+    """Provides a mock SovereignContainer instance with a valid temporary STEP file path based on dummy_in schema."""
+    d_in = dummy_in()
+    step_file = tmp_path / Path(d_in["step_file_path"]).name
     step_file.write_text("HEADER; DATA; ENDSEC;")  # Dummy STEP content
 
     container = MagicMock(spec=SovereignContainer)
@@ -44,6 +47,7 @@ def mock_container(tmp_path: Path) -> SovereignContainer:
 
 
 # --- TESTS: MODULE IMPORT FALLBACK ---
+
 
 def test_ingestion_has_occ_import_error_coverage(monkeypatch):
     """
@@ -69,8 +73,12 @@ def test_ingestion_has_occ_import_error_coverage(monkeypatch):
 
 # --- TESTS: HAPPY PATH & BOUNDING BOX CALCULATION ---
 
+
 def test_ingestion_step_success(
-    ingestion_step: IngestionStep, mock_container: SovereignContainer, monkeypatch, caplog
+    ingestion_step: IngestionStep,
+    mock_container: SovereignContainer,
+    monkeypatch,
+    caplog,
 ):
     """
     Verifies successful execution, STEP reading, shape assignment, 
@@ -105,11 +113,15 @@ def test_ingestion_step_success(
     assert mock_container.bounding_box == (-10.0, 10.0, -20.0, 20.0, -30.0, 30.0)
 
     # Validate logging
-    assert f"Executing IngestionStep for: {mock_container.step_file_path}" in caplog.text
+    assert (
+        f"Executing IngestionStep for: {mock_container.step_file_path}"
+        in caplog.text
+    )
     assert "OCC Bounding Box parsed successfully from geometry:" in caplog.text
 
 
 # --- TESTS: CONSTITUTION VIOLATIONS & EXCEPTIONS ---
+
 
 def test_ingestion_step_missing_occ_dependency(
     ingestion_step: IngestionStep, mock_container: SovereignContainer, monkeypatch
@@ -121,7 +133,7 @@ def test_ingestion_step_missing_occ_dependency(
 
     with pytest.raises(
         ImportError,
-        match=r"CONSTITUTION VIOLATION: OpenCASCADE \(pythonocc\) is required for CAD ingestion\."
+        match=r"CONSTITUTION VIOLATION: OpenCASCADE \(pythonocc\) is required for CAD ingestion\.",
     ):
         ingestion_step.execute(mock_container)
 
@@ -137,14 +149,17 @@ def test_ingestion_step_file_not_found(
 
     with pytest.raises(
         FileNotFoundError,
-        match=r"CONSTITUTION VIOLATION: STEP file not found at path '.*missing\.step'\. Execution halted\."
+        match=r"CONSTITUTION VIOLATION: STEP file not found at path '.*missing\.step'\. Execution halted\.",
     ):
         ingestion_step.execute(mock_container)
 
 
 @pytest.mark.parametrize("failed_status", [0, 2, -1])
 def test_ingestion_step_read_file_failure(
-    ingestion_step: IngestionStep, mock_container: SovereignContainer, monkeypatch, failed_status: int
+    ingestion_step: IngestionStep,
+    mock_container: SovereignContainer,
+    monkeypatch,
+    failed_status: int,
 ):
     """
     Verifies that execute() raises RuntimeError when STEP reader status is not 1 (Lines 42-45).
@@ -157,16 +172,20 @@ def test_ingestion_step_read_file_failure(
 
     with pytest.raises(
         RuntimeError,
-        match=rf"CONSTITUTION VIOLATION: Failed to read STEP geometry at '.*' \(status code: {failed_status}\)\. Execution halted\."
+        match=rf"CONSTITUTION VIOLATION: Failed to read STEP geometry at '.*' \(status code: {failed_status}\)\. Execution halted\.",
     ):
         ingestion_step.execute(mock_container)
 
 
 # --- TESTS: MEMORY & SLOTS ENFORCEMENT ---
 
+
 def test_ingestion_step_slots_enforcement(ingestion_step: IngestionStep):
     """
     Verifies that IngestionStep enforces __slots__ = () preventing dynamic attribute allocation.
     """
-    with pytest.raises(AttributeError, match="'IngestionStep' object has no attribute 'dynamic_attr'"):
+    with pytest.raises(
+        AttributeError,
+        match="'IngestionStep' object has no attribute 'dynamic_attr'",
+    ):
         ingestion_step.dynamic_attr = "unauthorized"  # type: ignore
