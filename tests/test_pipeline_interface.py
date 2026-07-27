@@ -1,4 +1,3 @@
-# tests/test_pipeline_interface.py
 """
 Literate Unit Test Suite: Pipeline Interface & Composite Contract Validation.
 

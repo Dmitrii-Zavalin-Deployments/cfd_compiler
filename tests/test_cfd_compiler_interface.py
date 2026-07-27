@@ -1,4 +1,3 @@
-# tests/test_cfd_compiler_interface.py
 """
 Literate Unit Test Suite: CFD Compiler Interface & Contract Validation.
 
