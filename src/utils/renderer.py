@@ -1,12 +1,13 @@
 from pathlib import Path
-from typing import Any, Dict, Tuple
-import numpy as np
+from typing import Any
 
 # Force non-interactive Agg backend for headless rendering
 import matplotlib
+import numpy as np
+
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 # Color palette for Raw STEP Geometry Preview
@@ -41,7 +42,7 @@ PHYSICAL_COLOR_MAP = {
 }
 
 
-def render_step_snapshot(output_path: Path, bounds: Tuple[float, ...]) -> None:
+def render_step_snapshot(output_path: Path, bounds: tuple[float, ...]) -> None:
     """Renders raw STEP geometry preview matching the exact 3D orientation of the pipeline maps."""
     fig = plt.figure(figsize=(10, 7))
     ax = fig.add_subplot(111, projection="3d")
@@ -71,7 +72,7 @@ def render_step_snapshot(output_path: Path, bounds: Tuple[float, ...]) -> None:
     plt.close(fig)
 
 
-def render_spatial_location_map(output_path: Path, bounds: Tuple[float, ...]) -> None:
+def render_spatial_location_map(output_path: Path, bounds: tuple[float, ...]) -> None:
     """Renders Spatial Location Map with alternating multi-color 'shtrih' shared edges and low-alpha fill (Model 1)."""
     fig = plt.figure(figsize=(10, 7))
     ax = fig.add_subplot(111, projection="3d")
@@ -104,9 +105,9 @@ def render_spatial_location_map(output_path: Path, bounds: Tuple[float, ...]) ->
 
 def render_physical_boundary_map(
     output_path: Path,
-    bounds: Tuple[float, ...],
-    location_to_type: Dict[str, str],
-    location_to_values: Dict[str, Dict[str, float]]
+    bounds: tuple[float, ...],
+    location_to_type: dict[str, str],
+    location_to_values: dict[str, dict[str, float]]
 ) -> None:
     """
     Renders Physical Boundary Map with dynamic velocity vectors & legend (Model 2).
@@ -177,7 +178,7 @@ def render_physical_boundary_map(
     plt.close(fig)
 
 
-def _get_face_centroid(loc: str, bounds: Tuple[float, ...]) -> Tuple[float, float, float]:
+def _get_face_centroid(loc: str, bounds: tuple[float, ...]) -> tuple[float, float, float]:
     """Calculates center coordinate for a given bounding box location strictly without silent fallback."""
     xmin, xmax, ymin, ymax, zmin, zmax = bounds
     mid_x, mid_y, mid_z = (xmin + xmax) / 2.0, (ymin + ymax) / 2.0, (zmin + zmax) / 2.0
@@ -202,8 +203,8 @@ def _get_face_centroid(loc: str, bounds: Tuple[float, ...]) -> Tuple[float, floa
 
 def _draw_alternating_edge(
     ax: Any,
-    p1: Tuple[float, float, float],
-    p2: Tuple[float, float, float],
+    p1: tuple[float, float, float],
+    p2: tuple[float, float, float],
     color1: str,
     color2: str,
     num_segments: int = 12
@@ -230,8 +231,8 @@ def _draw_alternating_edge(
 
 def _draw_domain_geometry(
     ax: Any,
-    bounds: Tuple[float, ...],
-    face_color_dict: Dict[str, str],
+    bounds: tuple[float, ...],
+    face_color_dict: dict[str, str],
     mode: str
 ) -> None:
     """Renders 3D bounding box faces with faint fills and alternating color 'shtrih' edges strictly without fallbacks."""

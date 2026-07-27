@@ -1,11 +1,12 @@
 import logging
 from pathlib import Path
+
 from interfaces.base_interface import StepInterface
 from src.state.cfd_compiler_state import SovereignContainer
 from src.utils.renderer import (
-    render_step_snapshot,
+    render_physical_boundary_map,
     render_spatial_location_map,
-    render_physical_boundary_map
+    render_step_snapshot,
 )
 
 logger = logging.getLogger(__name__)

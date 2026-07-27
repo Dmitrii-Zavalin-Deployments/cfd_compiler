@@ -3,10 +3,10 @@ import importlib
 import pkgutil
 
 import pytest
+from src.state.mesh_generator_state import GridState, SovereignContainer
 
 from interfaces.base_interface import StepInterface
 from src import steps
-from src.state.mesh_generator_state import GridState, SovereignContainer
 
 
 class TestBaseInterface:

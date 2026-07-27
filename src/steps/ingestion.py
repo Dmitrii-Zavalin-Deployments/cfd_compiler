@@ -1,12 +1,13 @@
 import logging
 from pathlib import Path
+
 from interfaces.base_interface import StepInterface
 from src.state.cfd_compiler_state import SovereignContainer
 
 try:
-    from OCC.Core.STEPControl import STEPControl_Reader
     from OCC.Core.Bnd import Bnd_Box
     from OCC.Core.BRepBndLib import brepbndlib
+    from OCC.Core.STEPControl import STEPControl_Reader
     HAS_OCC = True
 except ImportError:
     HAS_OCC = False
