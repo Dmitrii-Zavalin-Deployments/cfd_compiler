@@ -3,16 +3,16 @@ import importlib
 import pkgutil
 
 import pytest
-from src.state.mesh_generator_state import GridState, SovereignContainer
 
 from interfaces.base_interface import StepInterface
 from src import steps
+from src.state.cfd_compiler_state import SovereignContainer
 
 
 class TestBaseInterface:
     """
     Architectural Quality Gate for StepInterface.
-    
+     
     The StepInterface acts as the 'Constitution' for our pipeline. 
     It enforces structural integrity, codebase-wide consistency, and 
     strict stateful contracts for every operational step.
@@ -25,7 +25,6 @@ class TestBaseInterface:
         secure gatekeeper, actively blocking unauthorized code structures 
         at the moment of class declaration.
         """
-        
         # We define a 'RogueStep' class that attempts to introduce a helper method.
         # This violates the principle of 'Stateless Pipeline Execution', 
         # which requires steps to contain only the 'execute' entry point.
@@ -35,7 +34,7 @@ class TestBaseInterface:
             class RogueStep(StepInterface):
                 def execute(self, container):
                     """Required entry point."""
-                
+                 
                 def unauthorized_helper_method(self):
                     """This method triggers a structural compilation failure."""
                     return True
@@ -45,14 +44,13 @@ class TestBaseInterface:
         [STATIC ENFORCEMENT GATE]
         To maintain system-wide integrity, we perform a dynamic audit of 
         all production modules under 'src.steps/'. 
-        
+         
         If a module contains a class that violates our architectural 
         restrictions, the audit must fail immediately.
         """
-        
         # First, we discover all available modules in the production step directory.
         discovered_modules = list(pkgutil.iter_modules(steps.__path__))
-        
+         
         # We assert that the directory is populated; an empty pipeline is a critical failure.
         assert len(discovered_modules) > 0, "Architectural Error: No steps found under src/steps/."
 
@@ -74,32 +72,23 @@ class TestBaseInterface:
         [STATE TRACE GATE]
         Here, we verify the 'Happy Path' of the system. We demonstrate that 
         a compliant implementation can safely mutate a SovereignContainer 
-        and interact natively with the GridState.
+        and interact natively with its state attributes.
         """
-        
         # 1. Setup: We construct a pristine production container. 
-        # use_gmsh=False: We do not need the graphical engine for state logic tests.
         container = SovereignContainer(
-            use_gmsh=False,
-            step_file="test_geometry.step",
-            max_element_size=1.5,
-            solver_version="1.0.0",
+            step_file_path="test_geometry.step",
+            boundary_condition_mapping={"inlet": "dirichlet"},
             tolerance=1e-5,
-            min_element_size=0.1,
-            boundary_map={"inlet": "dirichlet"}
+            max_element_size=1.5,
+            min_element_size=0.1
         )
 
         # 2. Logic: We define a ConcreteMockResolutionStep.
-        # This step correctly populates the container's GridState and mask.
+        # This step correctly populates the container's state attributes.
         class ConcreteMockResolutionStep(StepInterface):
             def execute(self, target_container: SovereignContainer):
-                target_container.grid = GridState(
-                    x_min=0.0, x_max=10.0,
-                    y_min=0.0, y_max=10.0,
-                    z_min=0.0, z_max=5.0,
-                    nx=10, ny=10, nz=5
-                )
-                target_container.mask = [1, 0, 1, 1]
+                target_container.bounding_box = (0.0, 10.0, 0.0, 10.0, 0.0, 5.0)
+                target_container.status = "success"
 
         # 3. Execution: Run the step through the interface.
         step_executor = ConcreteMockResolutionStep()
@@ -107,9 +96,8 @@ class TestBaseInterface:
 
         # 4. Verification: We confirm that data mutation persists exactly 
         # as expected in the system layout.
-        assert isinstance(container.grid, GridState), "Contract Broken: Container grid state type mismatch."
-        assert container.grid.nx == 10, "Data Mutation Error: Voxel count (nx) did not persist."
-        assert container.mask == [1, 0, 1, 1], "Data Mutation Error: Computational mask array mismatch."
+        assert container.bounding_box == (0.0, 10.0, 0.0, 10.0, 0.0, 5.0), "Data Mutation Error: Bounding box did not persist."
+        assert container.status == "success", "Data Mutation Error: Status did not persist."
 
     def test_base_interface_rejection_on_direct_invocation(self):
         """
@@ -117,19 +105,15 @@ class TestBaseInterface:
         The StepInterface is an abstract blueprint, not a functional step. 
         It must reject direct execution attempts.
         """
-        
         # We define a container for the invocation attempt.
-        # use_gmsh=False: We do not need the graphical engine for security gate tests.
         container = SovereignContainer(
-            use_gmsh=False,
-            step_file="test.step", 
-            max_element_size=1.0, 
-            solver_version="1.0",
+            step_file_path="test.step", 
+            boundary_condition_mapping={},
             tolerance=1e-5, 
-            min_element_size=0.1, 
-            boundary_map={}
+            max_element_size=1.0, 
+            min_element_size=0.1
         )
-        
+         
         # Attempting to execute the base interface itself is forbidden.
         # We expect a NotImplementedError, signaling the user must override this class.
         abstract_step = StepInterface()
