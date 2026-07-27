@@ -272,22 +272,23 @@ def test_draw_alternating_edge_direct() -> None:
     assert len(ax.lines) == 4
 
 def test_render_physical_boundary_map_missing_wall(tmp_path):
-    """Tests render_physical_boundary_map when 'wall' is omitted from location_to_type, 
-    triggering default no-slip assignment (Lines 128-130)."""
+    """Tests that omitting 'wall' raises an immediate KeyError under the Strict No-Default Policy."""
     output_path = tmp_path / "physical_map.png"
     bounds = (0.0, 10.0, 0.0, 10.0, 0.0, 10.0)
     
-    # 'wall' is not explicitly defined in location_to_type
     location_to_type = {
         "x_min": "inflow",
-        "x_max": "outflow"
+        "x_max": "outflow",
+        "y_min": "free-slip",
+        "y_max": "free-slip",
+        "z_min": "free-slip",
+        "z_max": "free-slip",
+        # "wall" omitted intentionally
     }
-    location_to_values = {
-        "x_min": {"u": 1.0, "v": 0.0, "w": 0.0}
-    }
-    
-    render_physical_boundary_map(output_path, bounds, location_to_type, location_to_values)
-    assert output_path.exists()
+    location_to_values = {"x_min": {"u": 1.0, "v": 0.0, "w": 0.0}}
+
+    with pytest.raises(KeyError, match="CONSTITUTION VIOLATION: Missing boundary type definition for location 'wall'"):
+        render_physical_boundary_map(output_path, bounds, location_to_type, location_to_values)
 
 
 def test_render_physical_boundary_map_missing_noslip_keyerror(tmp_path, monkeypatch):
