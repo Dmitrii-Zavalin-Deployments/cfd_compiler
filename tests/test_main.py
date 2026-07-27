@@ -375,7 +375,7 @@ def test_main_step_file_input_branch_success(
             for bc in d_out["boundary_conditions"]
         ]
         container.status = d_out["status"]
-        container.bounding_box = {"min": [0, 0, 0], "max": [1, 1, 1]}
+        container.bounding_box = (0.0, 0.0, 0.0, 1.0, 1.0, 1.0)
         container.compiled_cells_count = d_out["compiled_cells_count"]
         container.artifacts_generated = d_out["artifacts_generated"]
 
@@ -558,7 +558,7 @@ def test_main_absolute_paths_success(
             for bc in d_out["boundary_conditions"]
         ]
         container.status = d_out["status"]
-        container.bounding_box = {"min": [0, 0, 0], "max": [2, 2, 2]}
+        container.bounding_box = (0.0, 0.0, 0.0, 2.0, 2.0, 2.0)
         container.compiled_cells_count = d_out["compiled_cells_count"]
         container.artifacts_generated = d_out["artifacts_generated"]
 
@@ -606,7 +606,7 @@ def test_main_relative_paths_success(
             for bc in d_out["boundary_conditions"]
         ]
         container.status = d_out["status"]
-        container.bounding_box = {"min": [0, 0, 0], "max": [1, 1, 1]}
+        container.bounding_box = (0.0, 0.0, 0.0, 1.0, 1.0, 1.0)
         container.compiled_cells_count = d_out["compiled_cells_count"]
         container.artifacts_generated = d_out["artifacts_generated"]
 
