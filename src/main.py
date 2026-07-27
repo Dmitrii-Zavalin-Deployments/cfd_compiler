@@ -47,7 +47,7 @@ def validate_json(data: dict, schema_path: Path) -> None:
         logger.info(f"Schema validation passed: {schema_path}")
     except ValidationError as e:
         logger.error(f"SCHEMA VIOLATION: {schema_path}\n{e.message}")
-        raise e
+        raise
 
 
 def main() -> None:
@@ -106,7 +106,7 @@ def main() -> None:
         with open(config_path, "r", encoding="utf-8") as f:
             config_data = json.load(f)
         logger.info(f"Configuration loaded successfully from {config_path}")
-    except Exception as err:
+    except Exception as err:  # noqa: BLE001
         logger.critical(f"Failure reading configuration file {config_path}: {err}")
         sys.exit(1)
 
@@ -149,7 +149,7 @@ def main() -> None:
             # Validate JSON contract against schema
             validate_json(input_data, schema_dir / "cfd_compiler_input_schema.json")
 
-    except Exception as err:
+    except Exception as err:  # noqa: BLE001
         logger.critical(f"Failure processing input file {input_file_path}: {err}")
         sys.exit(1)
 
@@ -189,7 +189,7 @@ def main() -> None:
             AssemblyStep()
         ])
         pipeline.run(container)
-    except Exception as err:
+    except Exception as err:  # noqa: BLE001
         logger.critical(f"Pipeline execution faulted: {err}")
         sys.exit(1)
 
@@ -228,7 +228,7 @@ def main() -> None:
         with open(output_file_path, "w", encoding="utf-8") as f:
             json.dump(output_payload, f, indent=2)
         logger.info(f"✅ CFD Compiler executed successfully. Output written to: {output_file_path}")
-    except Exception as err:
+    except Exception as err:  # noqa: BLE001
         logger.critical(f"Failure writing output JSON {output_file_path}: {err}")
         sys.exit(1)
 
