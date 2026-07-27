@@ -17,7 +17,6 @@ from OCC.Core.TopoDS import TopoDS_Shape
 
 from src.state.cfd_compiler_state import BoundaryConditionState, SovereignContainer
 
-
 # --- FIXTURES ---
 
 @pytest.fixture
