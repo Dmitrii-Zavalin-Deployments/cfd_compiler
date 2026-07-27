@@ -111,23 +111,24 @@ def render_physical_boundary_map(
 ) -> None:
     """
     Renders Physical Boundary Map with dynamic velocity vectors & legend (Model 2).
-    Strict non-default execution mandate: raises immediate KeyError on missing color mappings or missing velocity values.
+    Strict No-Default Policy: raises immediate KeyError on missing boundary locations, unknown types, or missing velocity values.
     """
     fig = plt.figure(figsize=(10, 7))
     ax = fig.add_subplot(111, projection="3d")
 
+    required_locations = ["x_min", "x_max", "y_min", "y_max", "z_min", "z_max", "wall"]
     face_colors = {}
-    for loc, btype in location_to_type.items():
+    for loc in required_locations:
+        if loc not in location_to_type:
+            raise KeyError(
+                f"CONSTITUTION VIOLATION: Missing boundary type definition for location '{loc}'. Execution halted."
+            )
+        btype = location_to_type[loc]
         if btype not in PHYSICAL_COLOR_MAP:
             raise KeyError(
                 f"CONSTITUTION VIOLATION: Unknown boundary type '{btype}' for location '{loc}'. Execution halted."
             )
         face_colors[loc] = PHYSICAL_COLOR_MAP[btype]
-
-    if "wall" not in face_colors:
-        if "no-slip" not in PHYSICAL_COLOR_MAP:
-            raise KeyError("CONSTITUTION VIOLATION: 'no-slip' type missing from PHYSICAL_COLOR_MAP. Execution halted.")
-        face_colors["wall"] = PHYSICAL_COLOR_MAP["no-slip"]
 
     _draw_domain_geometry(ax, bounds, face_color_dict=face_colors)
 
@@ -237,31 +238,7 @@ def _draw_domain_geometry(
     """Renders 3D bounding box faces with faint fills and alternating color 'shtrih' edges strictly without fallbacks."""
     xmin, xmax, ymin, ymax, zmin, zmax = bounds
 
-    # 1. Render translucent face fills (no collection edge)
-    plane_definitions = {
-        "x_min": np.array([[xmin, ymin, zmin], [xmin, ymax, zmin], [xmin, ymax, zmax], [xmin, ymin, zmax]]),
-        "x_max": np.array([[xmax, ymin, zmin], [xmax, ymax, zmin], [xmax, ymax, zmax], [xmax, ymin, zmax]]),
-        "y_min": np.array([[xmin, ymin, zmin], [xmax, ymin, zmin], [xmax, ymin, zmax], [xmin, ymin, zmax]]),
-        "y_max": np.array([[xmin, ymax, zmin], [xmax, ymax, zmin], [xmax, ymax, zmax], [xmin, ymax, zmax]]),
-        "z_min": np.array([[xmin, ymin, zmin], [xmax, ymin, zmin], [xmax, ymax, zmin], [xmin, ymin, zmin]]),
-        "z_max": np.array([[xmin, ymin, zmax], [xmax, ymin, zmax], [xmax, ymax, zmax], [xmin, ymin, zmax]]),
-    }
-
-    for loc, verts in plane_definitions.items():
-        if loc not in face_color_dict:
-            raise KeyError(
-                f"CONSTITUTION VIOLATION: Missing face color for location '{loc}'. Execution halted."
-            )
-        color = face_color_dict[loc]
-        poly = Poly3DCollection(
-            [verts],
-            alpha=0.10,
-            facecolor=color,
-            edgecolor="none"
-        )
-        ax.add_collection3d(poly)
-
-    # 2. Define the 12 unique cuboid edges and their two intersecting faces
+    # 1. Define the 12 unique cuboid edges and validate edge face colors first for test contract compatibility
     edges = [
         # Parallel to X-axis (4 edges)
         ((xmin, ymin, zmin), (xmax, ymin, zmin), "y_min", "z_min"),
@@ -288,6 +265,30 @@ def _draw_domain_geometry(
         c1 = face_color_dict[face1]
         c2 = face_color_dict[face2]
         _draw_alternating_edge(ax, p1, p2, c1, c2, num_segments=12)
+
+    # 2. Render translucent face fills
+    plane_definitions = {
+        "x_min": np.array([[xmin, ymin, zmin], [xmin, ymax, zmin], [xmin, ymax, zmax], [xmin, ymin, zmax]]),
+        "x_max": np.array([[xmax, ymin, zmin], [xmax, ymax, zmin], [xmax, ymax, zmax], [xmax, ymin, zmax]]),
+        "y_min": np.array([[xmin, ymin, zmin], [xmax, ymin, zmin], [xmax, ymin, zmax], [xmin, ymin, zmax]]),
+        "y_max": np.array([[xmin, ymax, zmin], [xmax, ymax, zmin], [xmax, ymax, zmax], [xmin, ymax, zmax]]),
+        "z_min": np.array([[xmin, ymin, zmin], [xmax, ymin, zmin], [xmax, ymax, zmin], [xmin, ymin, zmin]]),
+        "z_max": np.array([[xmin, ymin, zmax], [xmax, ymin, zmax], [xmax, ymax, zmax], [xmin, ymin, zmax]]),
+    }
+
+    for loc, verts in plane_definitions.items():
+        if loc not in face_color_dict:
+            raise KeyError(
+                f"CONSTITUTION VIOLATION: Missing face color for location '{loc}'. Execution halted."
+            )
+        color = face_color_dict[loc]
+        poly = Poly3DCollection(
+            [verts],
+            alpha=0.10,
+            facecolor=color,
+            edgecolor="none"
+        )
+        ax.add_collection3d(poly)
 
     # 3. Dynamic derivation of internal cylinder geometry from domain bounds
     span_x = xmax - xmin

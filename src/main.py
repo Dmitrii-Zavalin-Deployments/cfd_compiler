@@ -32,23 +32,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger("cfd_compiler")
 
+
 def validate_json(data: dict, schema_path: Path) -> None:
     """Validates input, config, or output dictionary against a JSON Schema file."""
     if not schema_path.exists():
         error_msg = f"CONSTITUTION VIOLATION: Schema file not found at {schema_path}"
         logger.critical(error_msg)
         raise FileNotFoundError(error_msg)
-    
-    try:
-        with open(schema_path, "r", encoding="utf-8") as f:
-            schema = json.load(f)
-        jsonschema.validate(instance=data, schema=schema)
-    except jsonschema.exceptions.ValidationError as err:
-        logger.critical(f"CONSTITUTION VIOLATION: Schema validation failed: {err}")
-        sys.exit(1)
-    except Exception as err:  # noqa: BLE001
-        logger.critical(f"CONSTITUTION VIOLATION: Error reading schema {schema_path}: {err}")
-        sys.exit(1)
+
+    with open(schema_path, "r", encoding="utf-8") as f:
+        schema = json.load(f)
+
+    jsonschema.validate(instance=data, schema=schema)
 
 
 def main() -> None:
@@ -111,7 +106,14 @@ def main() -> None:
         logger.critical(f"Failure reading configuration file {config_path}: {err}")
         sys.exit(1)
 
-    validate_json(config_data, config_schema_path)
+    try:
+        validate_json(config_data, config_schema_path)
+    except jsonschema.exceptions.ValidationError as err:
+        logger.critical(f"CONSTITUTION VIOLATION: Config schema validation failed: {err}")
+        sys.exit(1)
+    except Exception as err:  # noqa: BLE001
+        logger.critical(f"CONSTITUTION VIOLATION: Error reading schema {config_schema_path}: {err}")
+        sys.exit(1)
 
     # Strict No-Default Policy: Direct key extraction with immediate failure on missing parameters
     try:
@@ -150,6 +152,9 @@ def main() -> None:
             # Validate JSON contract against schema
             validate_json(input_data, schema_dir / "cfd_compiler_input_schema.json")
 
+    except jsonschema.exceptions.ValidationError as err:
+        logger.critical(f"CONSTITUTION VIOLATION: Input schema validation failed: {err}")
+        sys.exit(1)
     except Exception as err:  # noqa: BLE001
         logger.critical(f"Failure processing input file {input_file_path}: {err}")
         sys.exit(1)
@@ -221,7 +226,11 @@ def main() -> None:
     }
 
     # Validate Output Schema
-    validate_json(output_payload, schema_dir / "cfd_compiler_output_schema.json")
+    try:
+        validate_json(output_payload, schema_dir / "cfd_compiler_output_schema.json")
+    except jsonschema.exceptions.ValidationError as err:
+        logger.critical(f"CONSTITUTION VIOLATION: Output schema validation failed: {err}")
+        sys.exit(1)
 
     # Write JSON Artifact
     try:
