@@ -63,7 +63,7 @@ class SovereignContainer:
         self._bounding_box = None
         self._boundary_conditions = None
         self._cad_solid = None
-        self._status = "success"
+        self._status = None
         self._compiled_cells_count = None
         self._artifacts_generated = None
 
