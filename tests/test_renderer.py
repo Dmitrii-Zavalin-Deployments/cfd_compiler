@@ -9,6 +9,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pytest
 
+import src.utils.renderer as renderer_module
 from src.utils.renderer import (
     PHYSICAL_COLOR_MAP,
     _draw_alternating_edge,
@@ -19,7 +20,6 @@ from src.utils.renderer import (
     render_step_snapshot,
 )
 from tests.conftest import dummy_in, dummy_out
-import src.utils.renderer as renderer_module
 
 logger = logging.getLogger(__name__)
 
