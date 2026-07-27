@@ -618,3 +618,136 @@ def test_main_relative_paths_success(
     assert output_json.exists()
     payload = json.loads(output_json.read_text(encoding="utf-8"))
     assert payload["results"]["status"] == d_out["status"]
+
+def test_main_config_missing_max_element_size(mock_schemas_and_config, monkeypatch):
+    """Tests failure when 'max_element_size' is missing from config.json (Line 120)."""
+    workspace_dir = mock_schemas_and_config["workspace_dir"]
+    input_json = mock_schemas_and_config["input_json"]
+    output_json = workspace_dir / "output.json"
+    
+    config_path = mock_schemas_and_config["root_dir"] / "config" / "config.json"
+    with open(config_path, "w", encoding="utf-8") as f:
+        json.dump({
+            "tolerance": 1e-5,
+            "min_element_size": 0.1,
+            "boundary_condition_mapping": {}
+        }, f)
+        
+    test_args = [
+        "main.py",
+        "--input_output_folder", str(workspace_dir),
+        "--input_file_name", input_json.name,
+        "--output_file_name", output_json.name
+    ]
+    monkeypatch.setattr("sys.argv", test_args)
+    
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+    assert exc_info.value.code == 1
+
+
+def test_main_config_missing_min_element_size(mock_schemas_and_config, monkeypatch):
+    """Tests failure when 'min_element_size' is missing from config.json (Line 122)."""
+    workspace_dir = mock_schemas_and_config["workspace_dir"]
+    input_json = mock_schemas_and_config["input_json"]
+    output_json = workspace_dir / "output.json"
+    
+    config_path = mock_schemas_and_config["root_dir"] / "config" / "config.json"
+    with open(config_path, "w", encoding="utf-8") as f:
+        json.dump({
+            "tolerance": 1e-5,
+            "max_element_size": 1.0,
+            "boundary_condition_mapping": {}
+        }, f)
+        
+    test_args = [
+        "main.py",
+        "--input_output_folder", str(workspace_dir),
+        "--input_file_name", input_json.name,
+        "--output_file_name", output_json.name
+    ]
+    monkeypatch.setattr("sys.argv", test_args)
+    
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+    assert exc_info.value.code == 1
+
+
+def test_main_config_missing_boundary_condition_mapping(mock_schemas_and_config, monkeypatch):
+    """Tests failure when 'boundary_condition_mapping' is missing from config.json (Line 124)."""
+    workspace_dir = mock_schemas_and_config["workspace_dir"]
+    input_json = mock_schemas_and_config["input_json"]
+    output_json = workspace_dir / "output.json"
+    
+    config_path = mock_schemas_and_config["root_dir"] / "config" / "config.json"
+    with open(config_path, "w", encoding="utf-8") as f:
+        json.dump({
+            "tolerance": 1e-5,
+            "max_element_size": 1.0,
+            "min_element_size": 0.1
+        }, f)
+        
+    test_args = [
+        "main.py",
+        "--input_output_folder", str(workspace_dir),
+        "--input_file_name", input_json.name,
+        "--output_file_name", output_json.name
+    ]
+    monkeypatch.setattr("sys.argv", test_args)
+    
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+    assert exc_info.value.code == 1
+
+
+def test_main_input_missing_step_file_path(mock_schemas_and_config, monkeypatch):
+    """Tests failure when 'step_file_path' is missing in the input payload (Line 159)."""
+    workspace_dir = mock_schemas_and_config["workspace_dir"]
+    output_json = workspace_dir / "output.json"
+    
+    bad_input_json = workspace_dir / "bad_input.json"
+    with open(bad_input_json, "w", encoding="utf-8") as f:
+        json.dump({"boundary_condition_mapping": {}}, f)
+        
+    test_args = [
+        "main.py",
+        "--input_output_folder", str(workspace_dir),
+        "--input_file_name", bad_input_json.name,
+        "--output_file_name", output_json.name
+    ]
+    monkeypatch.setattr("sys.argv", test_args)
+    monkeypatch.setattr("src.main.validate_json", lambda data, path: None)
+    
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+    assert exc_info.value.code == 1
+
+
+def test_main_output_write_failure(mock_schemas_and_config, monkeypatch):
+    """Tests failure handling when writing output JSON encounters an exception (Lines 231-233)."""
+    workspace_dir = mock_schemas_and_config["workspace_dir"]
+    input_json = mock_schemas_and_config["input_json"]
+    
+    # Passing a directory path as output_file_name causes open() to raise IsADirectoryError
+    output_dir = workspace_dir / "output_dir"
+    output_dir.mkdir()
+    
+    test_args = [
+        "main.py",
+        "--input_output_folder", str(workspace_dir),
+        "--input_file_name", input_json.name,
+        "--output_file_name", "output_dir"
+    ]
+    monkeypatch.setattr("sys.argv", test_args)
+    
+    def mock_run_success(self, container):
+        container.boundary_conditions = []
+        container.status = "success"
+        container.bounding_box = (0.0, 0.0, 0.0, 1.0, 1.0, 1.0)
+        container.compiled_cells_count = 100
+        container.artifacts_generated = ["mesh.msh"]
+        
+    with patch("src.main.Orchestrator.run", new=mock_run_success):
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+        assert exc_info.value.code == 1
