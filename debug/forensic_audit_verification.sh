@@ -2,29 +2,31 @@
 set -euo pipefail
 
 echo "=================================================="
-echo " [1] DIAGNOSTICS: Locating ruff violations in src/main.py"
+echo " [1] DIAGNOSTICS: Executing Vulture to isolate dead code"
 echo "=================================================="
-grep -n -C 3 "raise e" src/main.py || echo "Pattern 'raise e' not found."
-grep -n -C 2 "except Exception" src/main.py || echo "Pattern 'except Exception' not found."
+vulture src/ || true
 
 echo ""
 echo "=================================================="
-echo " [2] SMOKING-GUN SOURCE AUDIT: cat -n on src/main.py"
+echo " [2] SMOKING-GUN SOURCE AUDIT: Inspecting src/ files"
 echo "=================================================="
-if [ -f "src/main.py" ]; then
-    cat -n src/main.py
-else
-    echo "Error: src/main.py not found."
-fi
+for target_file in src/main.py src/utils/renderer.py src/steps/rendering.py; do
+    if [ -f "$target_file" ]; then
+        echo "--------------------------------------------------"
+        echo " File: $target_file"
+        echo "--------------------------------------------------"
+        cat -n "$target_file"
+    fi
+done
 
 echo ""
 echo "=================================================="
 echo " [3] AUTOMATED REPAIR PROPOSALS (Commented out)"
 echo "=================================================="
-# Root Cause: TRY201 (specifying exception name in 'raise e') and BLE001 (catching blind 'Exception') in src/main.py.
+# Root Cause: Vulture detected unused functions, classes, variables, or imports violating Rule 2 (Zero-Debt Mandate).
 #
-# To fix TRY201 (change 'raise e' to plain 'raise'):
-# sed -i 's/\s*raise e\s*/    raise/g' src/main.py
+# To remove an unused import or line matching a specific pattern:
+# sed -i '/UNUSED_VARIABLE_OR_IMPORT/d' src/main.py
 #
-# To fix BLE001 (append noqa comment to blind exception handling blocks):
-# sed -i '/except Exception as err:/s/$/  # noqa: BLE001/' src/main.py
+# To delete an unused function block entirely (example pattern):
+# sed -i '/def unused_function/,/^$/d' src/utils/renderer.py
