@@ -106,11 +106,16 @@ def test_render_physical_boundary_map_explicit_wall(tmp_path: Path) -> None:
 def test_render_physical_boundary_map_zero_velocity(tmp_path: Path) -> None:
     """Verifies quiver scaling branch when velocity magnitude is zero (scale = 1.0)."""
     output_file = tmp_path / "physical_map_zero_vel.png"
-    d_out = dummy_out()
-    inflow_bc = next(bc for bc in d_out["boundary_conditions"] if bc["type"] == "inflow")
-
-    location_to_type = {inflow_bc["location"]: inflow_bc["type"]}
-    location_to_values = {inflow_bc["location"]: {"u": 0.0, "v": 0.0, "w": 0.0}}
+    location_to_type = {
+        "x_min": "inflow",
+        "x_max": "outflow",
+        "y_min": "no-slip",
+        "y_max": "free-slip",
+        "z_min": "pressure",
+        "z_max": "no-slip",
+        "wall": "no-slip",
+    }
+    location_to_values = {"x_min": {"u": 0.0, "v": 0.0, "w": 0.0}}
 
     logger.info("Executing render_physical_boundary_map with zero magnitude inflow")
     render_physical_boundary_map(
@@ -123,10 +128,15 @@ def test_render_physical_boundary_map_zero_velocity(tmp_path: Path) -> None:
 def test_render_physical_boundary_map_inflow_not_in_values(tmp_path: Path) -> None:
     """Verifies skip condition when 'inflow' location is missing from location_to_values."""
     output_file = tmp_path / "physical_map_no_values.png"
-    d_out = dummy_out()
-    inflow_bc = next(bc for bc in d_out["boundary_conditions"] if bc["type"] == "inflow")
-
-    location_to_type = {inflow_bc["location"]: inflow_bc["type"]}
+    location_to_type = {
+        "x_min": "inflow",
+        "x_max": "outflow",
+        "y_min": "no-slip",
+        "y_max": "free-slip",
+        "z_min": "pressure",
+        "z_max": "no-slip",
+        "wall": "no-slip",
+    }
     location_to_values = {}
 
     logger.info("Executing render_physical_boundary_map with unmapped inflow location")
@@ -158,7 +168,9 @@ def test_render_physical_boundary_map_missing_noslip_raises(
     d_out = dummy_out()
     inflow_bc = next(bc for bc in d_out["boundary_conditions"] if bc["type"] == "inflow")
 
-    location_to_type = {inflow_bc["location"]: inflow_bc["type"]}
+    location_to_type = {
+        bc["location"]: bc["type"] for bc in d_out["boundary_conditions"]
+    }
     location_to_values = {inflow_bc["location"]: inflow_bc["values"]}
 
     monkeypatch.delitem(PHYSICAL_COLOR_MAP, "no-slip")
@@ -177,13 +189,16 @@ def test_render_physical_boundary_map_inflow_missing_components_raises(
 ) -> None:
     """Verifies KeyError raises when inflow values lack u, v, or w."""
     output_file = tmp_path / "fail.png"
-    d_out = dummy_out()
-    inflow_bc = next(bc for bc in d_out["boundary_conditions"] if bc["type"] == "inflow")
-
-    location_to_type = {inflow_bc["location"]: inflow_bc["type"]}
-    location_to_values = {
-        inflow_bc["location"]: {"u": inflow_bc["values"]["u"]}
-    }  # Missing 'v' and 'w'
+    location_to_type = {
+        "x_min": "inflow",
+        "x_max": "outflow",
+        "y_min": "no-slip",
+        "y_max": "free-slip",
+        "z_min": "pressure",
+        "z_max": "no-slip",
+        "wall": "no-slip",
+    }
+    location_to_values = {"x_min": {"u": 1.0}}  # Missing 'v' and 'w'
 
     logger.info("Verifying KeyError on missing velocity components")
     with pytest.raises(KeyError, match="missing required velocity components"):
