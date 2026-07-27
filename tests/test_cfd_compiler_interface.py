@@ -7,7 +7,7 @@ and validates Sovereign Container contract shape parity (Input, Config, Results)
 prior to pipeline execution.
 """
 
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Dict
 
 from interfaces.cfd_compiler_interface import (
     BoundaryConditionInterface,
@@ -20,6 +20,7 @@ class TestGridContract(GridInterface):
     """
     Concrete test class inheriting directly from GridInterface to enforce 1:1 interface compliance.
     """
+    __test__ = False
 
     x_min: float = 0.0
     x_max: float = 10.0
@@ -60,10 +61,11 @@ class TestBoundaryConditionContract(BoundaryConditionInterface):
     """
     Concrete test class inheriting directly from BoundaryConditionInterface to enforce 1:1 interface compliance.
     """
+    __test__ = False
 
     location: str = "x_min"
     type: str = "inflow"
-    values: ClassVar[dict[str, Any]] = {"u": 10.0, "v": 0.0, "w": 0.0}
+    values: ClassVar[Dict[str, Any]] = {"u": 10.0, "v": 0.0, "w": 0.0}
 
     def test_boundary_condition_interface_contract(self) -> None:
         """
