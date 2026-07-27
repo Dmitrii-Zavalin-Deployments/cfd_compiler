@@ -19,6 +19,7 @@ from src.utils.renderer import (
     render_step_snapshot,
 )
 from tests.conftest import dummy_in, dummy_out
+import src.utils.renderer as renderer_module
 
 logger = logging.getLogger(__name__)
 
@@ -269,3 +270,65 @@ def test_draw_alternating_edge_direct() -> None:
     )
 
     assert len(ax.lines) == 4
+
+def test_render_physical_boundary_map_missing_wall(tmp_path):
+    """Tests render_physical_boundary_map when 'wall' is omitted from location_to_type, 
+    triggering default no-slip assignment (Lines 128-130)."""
+    output_path = tmp_path / "physical_map.png"
+    bounds = (0.0, 10.0, 0.0, 10.0, 0.0, 10.0)
+    
+    # 'wall' is not explicitly defined in location_to_type
+    location_to_type = {
+        "x_min": "inflow",
+        "x_max": "outflow"
+    }
+    location_to_values = {
+        "x_min": {"u": 1.0, "v": 0.0, "w": 0.0}
+    }
+    
+    render_physical_boundary_map(output_path, bounds, location_to_type, location_to_values)
+    assert output_path.exists()
+
+
+def test_render_physical_boundary_map_missing_noslip_keyerror(tmp_path, monkeypatch):
+    """Tests KeyError when 'wall' is missing and 'no-slip' is missing from PHYSICAL_COLOR_MAP (Line 129)."""
+    output_path = tmp_path / "physical_map.png"
+    bounds = (0.0, 10.0, 0.0, 10.0, 0.0, 10.0)
+    
+    location_to_type = {
+        "x_min": "inflow",
+        "x_max": "outflow"
+    }
+    location_to_values = {
+        "x_min": {"u": 1.0, "v": 0.0, "w": 0.0}
+    }
+    
+    # Temporarily remove 'no-slip' from PHYSICAL_COLOR_MAP to trigger the constitution violation KeyError
+    bad_map = renderer_module.PHYSICAL_COLOR_MAP.copy()
+    bad_map.pop("no-slip", None)
+    monkeypatch.setattr(renderer_module, "PHYSICAL_COLOR_MAP", bad_map)
+    
+    with pytest.raises(KeyError, match="no-slip"):
+        render_physical_boundary_map(output_path, bounds, location_to_type, location_to_values)
+
+
+def test_draw_domain_geometry_missing_edge_face_keyerror():
+    """Tests KeyError when an edge's face color definition is missing in _draw_domain_geometry (Line 285)."""
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection="3d")
+    bounds = (0.0, 10.0, 0.0, 10.0, 0.0, 10.0)
+    
+    # Omit 'y_min' which is required by edge definitions in _draw_domain_geometry
+    incomplete_color_map = {
+        "x_min": "#4A6572",
+        "x_max": "#4A6572",
+        "y_max": "#4A6572",
+        "z_min": "#4A6572",
+        "z_max": "#4A6572",
+        "wall": "#2C3E50"
+    }
+    
+    with pytest.raises(KeyError, match="Missing color definition for edge faces"):
+        _draw_domain_geometry(ax, bounds, incomplete_color_map)
+        
+    plt.close(fig)
