@@ -7,7 +7,7 @@ and validates Sovereign Container contract shape parity (Input, Config, Results)
 prior to pipeline execution.
 """
 
-from typing import Any, ClassVar, Dict
+from typing import Any, ClassVar
 
 from interfaces.cfd_compiler_interface import (
     BoundaryConditionInterface,
@@ -65,7 +65,7 @@ class TestBoundaryConditionContract(BoundaryConditionInterface):
 
     location: str = "x_min"
     type: str = "inflow"
-    values: ClassVar[Dict[str, Any]] = {"u": 10.0, "v": 0.0, "w": 0.0}
+    values: ClassVar[dict[str, Any]] = {"u": 10.0, "v": 0.0, "w": 0.0}
 
     def test_boundary_condition_interface_contract(self) -> None:
         """

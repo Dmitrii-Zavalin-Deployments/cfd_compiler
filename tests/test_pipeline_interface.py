@@ -7,7 +7,7 @@ and validates Sovereign Container contract shape parity (Input, Config, Results)
 against the composite engine execution state contract prior to pipeline execution.
 """
 
-from typing import Any, ClassVar, Dict, List
+from typing import Any, ClassVar
 
 from interfaces.cfd_compiler_interface import BoundaryConditionInterface
 from interfaces.pipeline_interface import PipelineInterface
@@ -24,7 +24,7 @@ class TestBoundaryConditionContract(BoundaryConditionInterface):
 
     location: str = "x_min"
     type: str = "inflow"
-    values: ClassVar[Dict[str, Any]] = {"u": 10.0, "v": 0.0, "w": 0.0}
+    values: ClassVar[dict[str, Any]] = {"u": 10.0, "v": 0.0, "w": 0.0}
 
 
 class TestPipelineInterfaceContract(PipelineInterface):
@@ -46,12 +46,12 @@ class TestPipelineInterfaceContract(PipelineInterface):
         return 100000
 
     @property
-    def boundary_conditions(self) -> List[BoundaryConditionInterface]:
+    def boundary_conditions(self) -> list[BoundaryConditionInterface]:
         """Resolved boundary conditions mapped with locations, types, and values."""
         return [TestBoundaryConditionContract()]
 
     @property
-    def artifacts_generated(self) -> List[str]:
+    def artifacts_generated(self) -> list[str]:
         """Generated 3D visual rendering diagnostic artifact filenames."""
         return ["step_snapshot.png", "spatial_location_map.png", "physical_boundary_map.png"]
 
