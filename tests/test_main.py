@@ -106,10 +106,10 @@ def mock_schemas_and_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         "tolerance": 1e-6,
         "max_element_size": 0.05,
         "min_element_size": 0.001,
-        "boundary_condition_mapping": {
-            "inlet": "velocity_inlet",
-            "outlet": "pressure_outlet",
-        },
+        "boundary_condition_mapping": [
+            {"location": "inlet", "type": "inflow", "values": {"u": 1.0, "v": 0.0, "w": 0.0}},
+            {"location": "outlet", "type": "outflow", "values": {"p": 0.0}}
+        ],
     }
     with open(config_dir / "config.json", "w", encoding="utf-8") as f:
         json.dump(valid_config, f)
