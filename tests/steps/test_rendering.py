@@ -22,7 +22,6 @@ import pytest
 from src.state.cfd_compiler_state import BoundaryConditionState, SovereignContainer
 from src.steps.rendering import RenderingStep
 
-
 # --- FIXTURES ---
 
 @pytest.fixture

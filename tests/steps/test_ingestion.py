@@ -18,10 +18,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from src.state.cfd_compiler_state import SovereignContainer
 import src.steps.ingestion
+from src.state.cfd_compiler_state import SovereignContainer
 from src.steps.ingestion import IngestionStep
-
 
 # --- FIXTURES ---
 

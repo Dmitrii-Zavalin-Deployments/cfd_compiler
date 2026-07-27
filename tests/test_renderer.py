@@ -5,6 +5,7 @@ Provides 100% test coverage and validates all constitution quality gates.
 
 import logging
 from pathlib import Path
+
 import matplotlib.pyplot as plt
 import pytest
 
