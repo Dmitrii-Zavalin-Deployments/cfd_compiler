@@ -165,7 +165,7 @@ def main() -> None:
             )
 
         step_file_path = input_data["step_file_path"]
-        bc_mapping = input_data["boundary_condition_mapping"]
+        bc_mapping = input_data.get("boundary_condition_mapping", config_bc_mapping)
     except KeyError as err:
         logger.critical(f"{err}")
         sys.exit(1)
