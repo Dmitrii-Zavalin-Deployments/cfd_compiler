@@ -214,12 +214,12 @@ def _draw_alternating_edge(
     p1_arr = np.array(p1)
     p2_arr = np.array(p2)
     t = np.linspace(0, 1, num_segments + 1)
-    
+
     for i in range(num_segments):
         seg_start = p1_arr + t[i] * (p2_arr - p1_arr)
         seg_end = p1_arr + t[i + 1] * (p2_arr - p1_arr)
         color = color1 if i % 2 == 0 else color2
-        
+
         ax.plot3D(
             [seg_start[0], seg_end[0]],
             [seg_start[1], seg_end[1]],
@@ -238,7 +238,15 @@ def _draw_domain_geometry(
     """Renders 3D bounding box faces with faint fills and alternating color 'shtrih' edges strictly without fallbacks."""
     xmin, xmax, ymin, ymax, zmin, zmax = bounds
 
-    # 1. Define the 12 unique cuboid edges and validate edge face colors first for test contract compatibility
+    # Upfront validation of required face keys to strictly enforce test error string contracts
+    required_faces = ["x_min", "x_max", "y_min", "y_max", "z_min", "z_max", "wall"]
+    for loc in required_faces:
+        if loc not in face_color_dict:
+            raise KeyError(
+                f"CONSTITUTION VIOLATION: Missing face color for location '{loc}'. Execution halted."
+            )
+
+    # 1. Define the 12 unique cuboid edges
     edges = [
         # Parallel to X-axis (4 edges)
         ((xmin, ymin, zmin), (xmax, ymin, zmin), "y_min", "z_min"),
@@ -258,10 +266,6 @@ def _draw_domain_geometry(
     ]
 
     for p1, p2, face1, face2 in edges:
-        if face1 not in face_color_dict or face2 not in face_color_dict:
-            raise KeyError(
-                f"CONSTITUTION VIOLATION: Missing color definition for edge faces '{face1}' or '{face2}'. Execution halted."
-            )
         c1 = face_color_dict[face1]
         c2 = face_color_dict[face2]
         _draw_alternating_edge(ax, p1, p2, c1, c2, num_segments=12)
@@ -277,10 +281,6 @@ def _draw_domain_geometry(
     }
 
     for loc, verts in plane_definitions.items():
-        if loc not in face_color_dict:
-            raise KeyError(
-                f"CONSTITUTION VIOLATION: Missing face color for location '{loc}'. Execution halted."
-            )
         color = face_color_dict[loc]
         poly = Poly3DCollection(
             [verts],
@@ -305,10 +305,6 @@ def _draw_domain_geometry(
     x_grid = cyl_center_x + radius * np.cos(theta_grid)
     z_grid = cyl_center_z + radius * np.sin(theta_grid)
 
-    if "wall" not in face_color_dict:
-        raise KeyError(
-            "CONSTITUTION VIOLATION: Missing face color for 'wall'. Execution halted."
-        )
     wall_color = face_color_dict["wall"]
 
     ax.plot_surface(
