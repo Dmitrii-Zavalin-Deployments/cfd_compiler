@@ -6,6 +6,9 @@ class StepInterface:
     The Constitution. Inherit this for ALL processing steps.
     Enforces that only 'execute' is permitted.
     """
+    
+    __slots__ = ()
+    
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         ALLOWED_MEMBERS = {"execute"} 

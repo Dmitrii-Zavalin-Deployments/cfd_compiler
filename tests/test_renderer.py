@@ -177,7 +177,7 @@ def test_render_physical_boundary_map_missing_noslip_raises(
 
     logger.info("Verifying KeyError when 'no-slip' is missing from PHYSICAL_COLOR_MAP")
     with pytest.raises(
-        KeyError, match="CONSTITUTION VIOLATION: 'no-slip' type missing"
+        KeyError, match="CONSTITUTION VIOLATION: Unknown boundary type"
     ):
         render_physical_boundary_map(
             output_file, TEST_BOUNDS, location_to_type, location_to_values
