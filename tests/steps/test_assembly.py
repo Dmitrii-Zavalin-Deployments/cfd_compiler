@@ -19,7 +19,6 @@ import pytest
 from src.state.cfd_compiler_state import SovereignContainer
 from src.steps.assembly import AssemblyStep
 
-
 # --- FIXTURES ---
 
 @pytest.fixture
