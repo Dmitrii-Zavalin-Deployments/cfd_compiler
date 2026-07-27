@@ -77,7 +77,7 @@ class TestBaseInterface:
         # 1. Setup: We construct a pristine production container. 
         container = SovereignContainer(
             step_file_path="test_geometry.step",
-            boundary_condition_mapping={"inlet": "dirichlet"},
+            boundary_condition_mapping=[{"location": "inlet", "type": "dirichlet"}],
             tolerance=1e-5,
             max_element_size=1.5,
             min_element_size=0.1
@@ -108,7 +108,7 @@ class TestBaseInterface:
         # We define a container for the invocation attempt.
         container = SovereignContainer(
             step_file_path="test.step", 
-            boundary_condition_mapping={},
+            boundary_condition_mapping=[],
             tolerance=1e-5, 
             max_element_size=1.0, 
             min_element_size=0.1
