@@ -4,6 +4,7 @@ Ensures 100% statement and branch coverage across all execution paths,
 schema validations, error traps, and strict No-Default policy checks.
 """
 
+import sys
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -11,10 +12,12 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
+import jsonschema
 from jsonschema import ValidationError
 
 from src.main import main, validate_json
 from tests.conftest import dummy_in, dummy_out
+from src import main as main_module
 
 # --- MOCK DATA STRUCTURES ---
 
@@ -751,3 +754,139 @@ def test_main_output_write_failure(mock_schemas_and_config, monkeypatch):
         with pytest.raises(SystemExit) as exc_info:
             main()
         assert exc_info.value.code == 1
+
+def test_main_config_schema_generic_exception(tmp_path, monkeypatch):
+    """Covers lines 114-116: Generic exception during config schema validation."""
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    input_file = workspace / "input.json"
+    input_file.write_text(json.dumps({
+        "step_file_path": "dummy.step",
+        "boundary_condition_mapping": {"wall": "no-slip"}
+    }))
+    
+    monkeypatch.setattr(sys, "argv", [
+        "main.py",
+        "--input_output_folder", str(workspace),
+        "--input_file_name", "input.json",
+        "--output_file_name", "output.json"
+    ])
+    
+    def mock_validate(data, schema_path):
+        if "config" in str(schema_path):
+            raise RuntimeError("Unexpected non-validation error")
+        return None
+        
+    monkeypatch.setattr(main_module, "validate_json", mock_validate)
+    
+    with pytest.raises(SystemExit) as exc_info:
+        main_module.main()
+    assert exc_info.value.code == 1
+
+
+@pytest.mark.parametrize("missing_key", [
+    "max_element_size",   # Covers line 123
+    "min_element_size",   # Covers line 125
+    "boundary_condition_mapping"  # Covers line 127
+])
+def test_main_config_missing_required_keys(tmp_path, monkeypatch, missing_key):
+    """Covers strict No-Default policy key checks in config (Lines 123, 125, 127)."""
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    input_file = workspace / "input.json"
+    input_file.write_text(json.dumps({
+        "step_file_path": "dummy.step",
+        "boundary_condition_mapping": {"wall": "no-slip"}
+    }))
+    
+    monkeypatch.setattr(sys, "argv", [
+        "main.py",
+        "--input_output_folder", str(workspace),
+        "--input_file_name", "input.json",
+        "--output_file_name", "output.json"
+    ])
+    
+    orig_load = json.load
+    def mock_json_load(f):
+        data = orig_load(f)
+        if isinstance(data, dict) and missing_key in data:
+            data.pop(missing_key)
+        return data
+        
+    monkeypatch.setattr(json, "load", mock_json_load)
+    
+    with pytest.raises(SystemExit) as exc_info:
+        main_module.main()
+    assert exc_info.value.code == 1
+
+
+def test_main_input_schema_validation_failure(tmp_path, monkeypatch):
+    """Covers lines 156-157: Input schema validation failure."""
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    input_file = workspace / "input.json"
+    input_file.write_text(json.dumps({"invalid_contract": True}))
+    
+    monkeypatch.setattr(sys, "argv", [
+        "main.py",
+        "--input_output_folder", str(workspace),
+        "--input_file_name", "input.json",
+        "--output_file_name", "output.json"
+    ])
+    
+    def mock_validate(data, schema_path):
+        if "input" in str(schema_path):
+            raise jsonschema.exceptions.ValidationError("Input schema violation")
+        return None
+        
+    monkeypatch.setattr(main_module, "validate_json", mock_validate)
+    
+    with pytest.raises(SystemExit) as exc_info:
+        main_module.main()
+    assert exc_info.value.code == 1
+
+
+def test_main_output_schema_validation_failure(tmp_path, monkeypatch):
+    """Covers lines 231-233: Output schema validation failure."""
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    step_file = workspace / "test.step"
+    step_file.write_text("STEP DATA")
+    
+    input_file = workspace / "input.json"
+    input_file.write_text(json.dumps({
+        "step_file_path": str(step_file),
+        "boundary_condition_mapping": {"wall": "no-slip"}
+    }))
+    
+    monkeypatch.setattr(sys, "argv", [
+        "main.py",
+        "--input_output_folder", str(workspace),
+        "--input_file_name", "input.json",
+        "--output_file_name", "output.json"
+    ])
+    
+    class DummyContainer:
+        def __init__(self, **kwargs):
+            self.status = "success"
+            self.bounding_box = [0.0, 0.0, 0.0, 1.0, 1.0, 1.0]
+            self.compiled_cells_count = 100
+            self.artifacts_generated = []
+            class BC:
+                location = "wall"
+                type = "no-slip"
+                values = {}
+            self.boundary_conditions = [BC()]
+            
+    monkeypatch.setattr(main_module, "SovereignContainer", DummyContainer)
+    
+    def mock_validate(data, schema_path):
+        if "output" in str(schema_path):
+            raise jsonschema.exceptions.ValidationError("Output schema violation")
+        return None
+        
+    monkeypatch.setattr(main_module, "validate_json", mock_validate)
+    
+    with pytest.raises(SystemExit) as exc_info:
+        main_module.main()
+    assert exc_info.value.code == 1
