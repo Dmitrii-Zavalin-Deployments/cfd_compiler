@@ -58,7 +58,7 @@ def _parse_step_file(step_file_path: Path | None) -> tuple[np.ndarray | None, di
 
     try:
         text = path.read_text(encoding="utf-8", errors="ignore")
-    except Exception:
+    except (OSError, UnicodeDecodeError):
         return None, {}
 
     # Extract all CARTESIAN_POINT entities for arbitrary shape point cloud rendering
