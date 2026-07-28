@@ -225,12 +225,8 @@ def main() -> None:
         "results": results
     }
 
-    # Validate Output Schema
-    try:
-        validate_json(output_payload, schema_dir / "cfd_compiler_output_schema.json")
-    except jsonschema.exceptions.ValidationError as err:
-        logger.critical(f"CONSTITUTION VIOLATION: Output schema validation failed: {err}")
-        sys.exit(1)
+    # Validate Output Schema (Direct validation; exceptions bubble up or are handled by caller)
+    validate_json(output_payload, schema_dir / "cfd_compiler_output_schema.json")
 
     # Write JSON Artifact
     try:
