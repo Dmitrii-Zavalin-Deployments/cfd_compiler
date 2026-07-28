@@ -318,6 +318,24 @@ jobs:
           CPU_LOAD="${PEAK_COMPUTE_LOAD:-$(top -bn1 | grep "Cpu(s)" | awk '{print $2 + $4 "%"}')}"
           MEM_USAGE="${PEAK_MEM_USAGE:-$(free -m | awk '/Mem:/ { print $3 "/" $2 "MB" }')}"
 
+          # Dynamically locate artifacts with variable prefixes under strict non-default policy
+          SNAPSHOT_IMG=$(find data/testing-input-output -name "*_snapshot.png" | head -n 1)
+          SPATIAL_IMG=$(find data/testing-input-output -name "*_spatial_location_map.png" | head -n 1)
+          PHYSICAL_IMG=$(find data/testing-input-output -name "*_physical_boundary_map.png" | head -n 1)
+
+          if [ -z "$SNAPSHOT_IMG" ]; then
+            echo "CONSTITUTION VIOLATION: Missing artifact matching '*_snapshot.png'. Execution halted." >&2
+            exit 1
+          fi
+          if [ -z "$SPATIAL_IMG" ]; then
+            echo "CONSTITUTION VIOLATION: Missing artifact matching '*_spatial_location_map.png'. Execution halted." >&2
+            exit 1
+          fi
+          if [ -z "$PHYSICAL_IMG" ]; then
+            echo "CONSTITUTION VIOLATION: Missing artifact matching '*_physical_boundary_map.png'. Execution halted." >&2
+            exit 1
+          fi
+
           # New log entry
           # Construct the URL for the current run
           RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
@@ -344,19 +362,19 @@ jobs:
           <table align="center" style="border: 1px solid white; border-collapse: collapse; background: transparent;">
             <tr>
               <td style="border: 1px solid white; text-align: center; vertical-align: middle; padding: 0 8px; background: transparent;">
-                <img src="data/testing-input-output/step_snapshot.png" width="210" />
+                <img src="$SNAPSHOT_IMG" width="210" />
               </td>
               <td style="border: 1px solid white; text-align: center; vertical-align: middle; padding: 0 12px; font-size: 32px; color: #666; background: transparent;">
                 &rarr;
               </td>
               <td style="border: 1px solid white; text-align: center; vertical-align: middle; padding: 0 8px; background: transparent;">
-                <img src="data/testing-input-output/spatial_location_map.png" width="210" />
+                <img src="$SPATIAL_IMG" width="210" />
               </td>
               <td style="border: 1px solid white; text-align: center; vertical-align: middle; padding: 0 12px; font-size: 32px; color: #666; background: transparent;">
                 &rarr;
               </td>
               <td style="border: 1px solid white; text-align: center; vertical-align: middle; padding: 0 8px; background: transparent;">
-                <img src="data/testing-input-output/physical_boundary_map.png" width="210" />
+                <img src="$PHYSICAL_IMG" width="210" />
               </td>
             </tr>
           </table>
