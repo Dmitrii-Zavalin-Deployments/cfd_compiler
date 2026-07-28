@@ -9,19 +9,19 @@ spatial location mapping, physical boundary parsing, and solver preprocessing.
 <table align="center" style="border: 1px solid white; border-collapse: collapse; background: transparent;">
   <tr>
     <td style="border: 1px solid white; text-align: center; vertical-align: middle; padding: 0 8px; background: transparent;">
-      <img src="data/testing-input-output/step_snapshot.png" width="210" />
+      <img src="data/testing-input-output/cube_with_a_hole_snapshot.png" width="210" />
     </td>
     <td style="border: 1px solid white; text-align: center; vertical-align: middle; padding: 0 12px; font-size: 32px; color: #666; background: transparent;">
       &rarr;
     </td>
     <td style="border: 1px solid white; text-align: center; vertical-align: middle; padding: 0 8px; background: transparent;">
-      <img src="data/testing-input-output/spatial_location_map.png" width="210" />
+      <img src="data/testing-input-output/cube_with_a_hole_spatial_location_map.png" width="210" />
     </td>
     <td style="border: 1px solid white; text-align: center; vertical-align: middle; padding: 0 12px; font-size: 32px; color: #666; background: transparent;">
       &rarr;
     </td>
     <td style="border: 1px solid white; text-align: center; vertical-align: middle; padding: 0 8px; background: transparent;">
-      <img src="data/testing-input-output/physical_boundary_map.png" width="210" />
+      <img src="data/testing-input-output/cube_with_a_hole_physical_boundary_map.png" width="210" />
     </td>
   </tr>
 </table>
@@ -32,6 +32,12 @@ spatial location mapping, physical boundary parsing, and solver preprocessing.
 ---
 
 ### 🧮 Performance Audit:
+### Audit: 2026-07-28 19:57:26 UTC
+- **Branch:** `main`
+- **Status:** `failure`
+- **Run:** [Detailed Execution Logs](https://github.com/Dmitrii-Zavalin-Deployments/cfd_compiler/actions/runs/30394003305)
+- **CPU Load:** `27.9%`
+- **Memory Usage:** `175/15989MB`
 ### Audit: 2026-07-28 19:42:11 UTC
 - **Branch:** `main`
 - **Status:** `success`
