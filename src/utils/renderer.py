@@ -43,12 +43,12 @@ PHYSICAL_COLOR_MAP = {
 }
 
 
-def _parse_step_file(step_file_path: Path | None) -> tuple[np.ndarray | None, dict[str, Any]]:
+def _parse_step_file(step_file_path: Path | str | None) -> tuple[np.ndarray | None, dict[str, Any]]:
     """
-    Parses arbitrary 3D geometry and coordinate axis positions directly from a STEP file:
-    1. Extracts 3D coordinates from CARTESIAN_POINT entities for general shape rendering.
-    2. Extracts origin and local X, Y, Z axis vectors from AXIS2_PLACEMENT_3D entities.
-    3. Extracts CIRCLE and CYLINDRICAL_SURFACE entities to render internal holes and curved features.
+    Parses arbitrary 3D B-Rep geometry and coordinate axis positions directly from a STEP file:
+    1. Extracts CARTESIAN_POINT, VERTEX_POINT, DIRECTION, and AXIS2_PLACEMENT_3D entities.
+    2. Extracts EDGE_CURVE, LINE, CIRCLE, and CYLINDRICAL_SURFACE topological entities.
+    3. Generates 3D curve paths for visual QA rendering.
     """
     if not step_file_path:
         return None, {}
@@ -62,30 +62,43 @@ def _parse_step_file(step_file_path: Path | None) -> tuple[np.ndarray | None, di
     except (OSError, UnicodeDecodeError):
         return None, {}
 
-    # Extract all CARTESIAN_POINT entities for arbitrary shape point cloud rendering
-    point_entity_pattern = re.compile(
+    # 1. Parse CARTESIAN_POINT entities
+    point_pattern = re.compile(
         r"#(\d+)\s*=\s*CARTESIAN_POINT\s*\(\s*'[^']*'\s*,\s*\(\s*([-\d\.E+\-]+)\s*,\s*([-\d\.E+\-]+)\s*,\s*([-\d\.E+\-]+)\s*\)\s*\)",
         re.IGNORECASE
     )
-    point_entities: dict[str, np.ndarray] = {}
-    points: list[list[float]] = []
+    cartesian_points: dict[str, np.ndarray] = {}
+    all_points: list[list[float]] = []
 
-    for match in point_entity_pattern.finditer(text):
-        entity_id = match.group(1)
+    for match in point_pattern.finditer(text):
+        p_id = match.group(1)
         coords = [float(match.group(2)), float(match.group(3)), float(match.group(4))]
-        point_entities[entity_id] = np.array(coords)
-        points.append(coords)
+        cartesian_points[p_id] = np.array(coords)
+        all_points.append(coords)
 
-    # Extract DIRECTION entities
+    # 2. Parse VERTEX_POINT entities
+    vertex_pattern = re.compile(
+        r"#(\d+)\s*=\s*VERTEX_POINT\s*\(\s*'[^']*'\s*,\s*#(\d+)\s*\)",
+        re.IGNORECASE
+    )
+    vertices: dict[str, np.ndarray] = {}
+    for match in vertex_pattern.finditer(text):
+        v_id = match.group(1)
+        pt_id = match.group(2)
+        if pt_id in cartesian_points:
+            vertices[v_id] = cartesian_points[pt_id]
+
+    # 3. Parse DIRECTION entities
     dir_pattern = re.compile(
         r"#(\d+)\s*=\s*DIRECTION\s*\(\s*'[^']*'\s*,\s*\(\s*([-\d\.E+\-]+)\s*,\s*([-\d\.E+\-]+)\s*,\s*([-\d\.E+\-]+)\s*\)\s*\)",
         re.IGNORECASE
     )
     directions: dict[str, np.ndarray] = {}
     for match in dir_pattern.finditer(text):
-        directions[match.group(1)] = np.array([float(match.group(2)), float(match.group(3)), float(match.group(4))])
+        d_id = match.group(1)
+        directions[d_id] = np.array([float(match.group(2)), float(match.group(3)), float(match.group(4))])
 
-    # Extract all AXIS2_PLACEMENT_3D entities (Origin + Axis directions)
+    # 4. Parse AXIS2_PLACEMENT_3D entities
     placement_pattern = re.compile(
         r"#(\d+)\s*=\s*AXIS2_PLACEMENT_3D\s*\(\s*'[^']*'\s*,\s*#(\d+)(?:\s*,\s*#(\d+))?(?:\s*,\s*#(\d+))?\s*\)",
         re.IGNORECASE
@@ -98,7 +111,7 @@ def _parse_step_file(step_file_path: Path | None) -> tuple[np.ndarray | None, di
         z_id = match.group(3)
         x_id = match.group(4)
 
-        origin = point_entities.get(orig_id, np.array([0.0, 0.0, 0.0]))
+        origin = cartesian_points.get(orig_id, np.array([0.0, 0.0, 0.0]))
         z_axis = directions.get(z_id, np.array([0.0, 0.0, 1.0])) if z_id else np.array([0.0, 0.0, 1.0])
         x_axis = directions.get(x_id, np.array([1.0, 0.0, 0.0])) if x_id else np.array([1.0, 0.0, 0.0])
 
@@ -118,7 +131,7 @@ def _parse_step_file(step_file_path: Path | None) -> tuple[np.ndarray | None, di
             "z_axis": z_axis,
         }
 
-    # Primary axis frame selection (for coordinate triad rendering)
+    # Primary axis frame selection
     axis_frame: dict[str, Any] = {}
     m_place = re.search(
         r"AXIS2_PLACEMENT_3D\s*\(\s*'[^']*'\s*,\s*#(\d+)\s*,\s*#(\d+)\s*,\s*#(\d+)\s*\)",
@@ -127,7 +140,7 @@ def _parse_step_file(step_file_path: Path | None) -> tuple[np.ndarray | None, di
     )
     if m_place:
         origin_id, z_dir_id, x_dir_id = m_place.group(1), m_place.group(2), m_place.group(3)
-        origin = point_entities.get(origin_id, np.array([0.0, 0.0, 0.0]))
+        origin = cartesian_points.get(origin_id, np.array([0.0, 0.0, 0.0]))
         z_axis = directions.get(z_dir_id, np.array([0.0, 0.0, 1.0]))
         x_axis = directions.get(x_dir_id, np.array([1.0, 0.0, 0.0]))
 
@@ -147,18 +160,59 @@ def _parse_step_file(step_file_path: Path | None) -> tuple[np.ndarray | None, di
             "z_axis": z_axis,
         }
 
-    curves: list[np.ndarray] = []
-
-    # Extract CIRCLE entities to render hole perimeters
+    # 5. Parse CIRCLE entities
     circle_pattern = re.compile(
         r"#(\d+)\s*=\s*CIRCLE\s*\(\s*'[^']*'\s*,\s*#(\d+)\s*,\s*([-\d\.E+\-]+)\s*\)",
         re.IGNORECASE
     )
+    circles: dict[str, dict[str, Any]] = {}
     for match in circle_pattern.finditer(text):
-        placement_id = match.group(2)
+        c_id = match.group(1)
+        p_id = match.group(2)
         radius = float(match.group(3))
-        if placement_id in placements:
-            frame = placements[placement_id]
+        circles[c_id] = {"placement_id": p_id, "radius": radius}
+
+    curves: list[np.ndarray] = []
+
+    # 6. Parse EDGE_CURVE entities to connect CAD boundary lines
+    edge_pattern = re.compile(
+        r"#(\d+)\s*=\s*EDGE_CURVE\s*\(\s*'[^']*'\s*,\s*#(\d+)\s*,\s*#(\d+)\s*,\s*#(\d+)\s*,\s*\.(T|F)\.\s*\)",
+        re.IGNORECASE
+    )
+    for match in edge_pattern.finditer(text):
+        v1_id = match.group(2)
+        v2_id = match.group(3)
+        geom_id = match.group(4)
+
+        v1_pt = vertices.get(v1_id)
+        v2_pt = vertices.get(v2_id)
+
+        if geom_id in circles:
+            c_info = circles[geom_id]
+            p_id = c_info["placement_id"]
+            radius = c_info["radius"]
+            if p_id in placements:
+                frame = placements[p_id]
+                c_orig = frame["origin"]
+                u_vec = frame["x_axis"]
+                v_vec = frame["y_axis"]
+
+                angles = np.linspace(0, 2 * np.pi, 64)
+                circle_pts = np.array([
+                    c_orig + radius * np.cos(a) * u_vec + radius * np.sin(a) * v_vec
+                    for a in angles
+                ])
+                curves.append(circle_pts)
+        elif v1_pt is not None and v2_pt is not None:
+            # Straight topological CAD edge line segment
+            curves.append(np.array([v1_pt, v2_pt]))
+
+    # 7. Fallback processing for standalone CIRCLE entities
+    for c_id, c_info in circles.items():
+        p_id = c_info["placement_id"]
+        radius = c_info["radius"]
+        if p_id in placements:
+            frame = placements[p_id]
             c_orig = frame["origin"]
             u_vec = frame["x_axis"]
             v_vec = frame["y_axis"]
@@ -168,10 +222,14 @@ def _parse_step_file(step_file_path: Path | None) -> tuple[np.ndarray | None, di
                 c_orig + radius * np.cos(a) * u_vec + radius * np.sin(a) * v_vec
                 for a in angles
             ])
-            curves.append(circle_pts)
-            points.extend(circle_pts.tolist())
+            already_added = any(
+                len(c) == 64 and np.allclose(c[0], circle_pts[0], atol=1e-3)
+                for c in curves
+            )
+            if not already_added:
+                curves.append(circle_pts)
 
-    # Extract CYLINDRICAL_SURFACE entities to render hole boundary lines
+    # 8. Parse CYLINDRICAL_SURFACE entities
     cyl_pattern = re.compile(
         r"#(\d+)\s*=\s*CYLINDRICAL_SURFACE\s*\(\s*'[^']*'\s*,\s*#(\d+)\s*,\s*([-\d\.E+\-]+)\s*\)",
         re.IGNORECASE
@@ -186,15 +244,21 @@ def _parse_step_file(step_file_path: Path | None) -> tuple[np.ndarray | None, di
             u_vec = frame["x_axis"]
             v_vec = frame["y_axis"]
 
+            if all_points:
+                pts_arr = np.array(all_points)
+                span = np.max(pts_arr, axis=0) - np.min(pts_arr, axis=0)
+                length = float(np.max(span))
+            else:
+                length = radius * 2.0
+
             angles = np.linspace(0, 2 * np.pi, 8, endpoint=False)
-            length = radius * 2.0
             for a in angles:
                 radial_offset = radius * np.cos(a) * u_vec + radius * np.sin(a) * v_vec
                 line_start = c_orig + radial_offset - axis_vec * (length / 2.0)
                 line_end = c_orig + radial_offset + axis_vec * (length / 2.0)
                 curves.append(np.array([line_start, line_end]))
 
-    pts_array = np.array(points) if points else None
+    pts_array = np.array(all_points) if all_points else None
     axis_frame["curves"] = curves
 
     return pts_array, axis_frame
@@ -203,7 +267,7 @@ def _parse_step_file(step_file_path: Path | None) -> tuple[np.ndarray | None, di
 def render_step_snapshot(
     output_path: Path, 
     bounds: tuple[float, ...], 
-    step_file_path: Path | None = None
+    step_file_path: Path | str | None = None
 ) -> None:
     """Renders raw STEP geometry preview matching the exact 3D orientation of the pipeline maps."""
     fig = plt.figure(figsize=(10, 7))
@@ -237,7 +301,7 @@ def render_step_snapshot(
 def render_spatial_location_map(
     output_path: Path, 
     bounds: tuple[float, ...], 
-    step_file_path: Path | None = None
+    step_file_path: Path | str | None = None
 ) -> None:
     """Renders Spatial Location Map with alternating multi-color 'shtrih' shared edges and low-alpha fill (Model 1)."""
     fig = plt.figure(figsize=(10, 7))
@@ -274,7 +338,7 @@ def render_physical_boundary_map(
     bounds: tuple[float, ...],
     location_to_type: dict[str, str],
     location_to_values: dict[str, dict[str, float]],
-    step_file_path: Path | None = None
+    step_file_path: Path | str | None = None
 ) -> None:
     """
     Renders Physical Boundary Map with dynamic velocity vectors & legend (Model 2).
@@ -401,7 +465,7 @@ def _draw_domain_geometry(
     ax: Any,
     bounds: tuple[float, ...],
     face_color_dict: dict[str, str],
-    step_file_path: Path | None = None,
+    step_file_path: Path | str | None = None,
 ) -> None:
     """Renders 3D bounding box faces with faint fills and alternating color 'shtrih' edges strictly without fallbacks."""
     xmin, xmax, ymin, ymax, zmin, zmax = bounds
@@ -458,11 +522,10 @@ def _draw_domain_geometry(
         )
         ax.add_collection3d(poly)
 
-    # 3. Dynamic arbitrary STEP object geometry & local X, Y, Z frame rendering
+    # 3. Dynamic STEP object geometry rendering
     pts_array, axis_frame = _parse_step_file(step_file_path)
     wall_color = face_color_dict["wall"]
 
-    # Render extracted curves (circles, cylindrical boundaries, hole edges)
     curves = axis_frame.get("curves", [])
     for curve_pts in curves:
         ax.plot3D(
@@ -470,30 +533,11 @@ def _draw_domain_geometry(
             curve_pts[:, 1],
             curve_pts[:, 2],
             color=wall_color,
-            linewidth=2.0,
-            alpha=0.9
+            linewidth=2.5,
+            alpha=0.95
         )
 
-    if pts_array is not None and len(pts_array) > 0:
-        # Subsample high-density point clouds for responsive rendering performance
-        if len(pts_array) > 1200:
-            indices = np.random.choice(len(pts_array), 1200, replace=False)
-            sampled_pts = pts_array[indices]
-        else:
-            sampled_pts = pts_array
-
-        ax.scatter(
-            sampled_pts[:, 0],
-            sampled_pts[:, 1],
-            sampled_pts[:, 2],
-            c=wall_color,
-            alpha=0.65,
-            s=12,
-            depthshade=True,
-            edgecolors="none"
-        )
-
-    # Render local X, Y, Z coordinate triad extracted from STEP file (or domain centroid)
+    # Render local coordinate triad extracted from STEP file or domain centroid
     origin = axis_frame.get("origin")
     if origin is None:
         origin = np.array([
@@ -510,7 +554,6 @@ def _draw_domain_geometry(
     if box_scale <= 0:
         box_scale = 1.0
 
-    # Draw coordinate vectors: Red = X-axis, Green = Y-axis, Blue = Z-axis
     ax.quiver(
         origin[0], origin[1], origin[2],
         x_dir[0] * box_scale, x_dir[1] * box_scale, x_dir[2] * box_scale,
