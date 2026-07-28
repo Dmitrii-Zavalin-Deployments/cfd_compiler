@@ -267,12 +267,32 @@ jobs:
         run: |
           # Verify that JSON output data has been deterministically compiled
           echo "--- Verifying Generated Output Structure ---"
+          if [ ! -f "data/testing-input-output/cfd_compiler_output.json" ]; then
+            echo "CONSTITUTION VIOLATION: Missing JSON output 'cfd_compiler_output.json'. Execution halted." >&2
+            exit 1
+          fi
           ls -l data/testing-input-output/cfd_compiler_output.json
           
-          # Verify that both dual 3D diagnostic visual render assets have been successfully dumped
+          # Verify that all 3D diagnostic visual render assets have been successfully dumped with dynamic prefixes (no-default policy)
           echo "--- Verifying Dual 3D Diagnostic Visual Render Assets ---"
-          ls -l data/testing-input-output/spatial_location_map.png
-          ls -l data/testing-input-output/physical_boundary_map.png
+          SNAPSHOT_IMG=$(find data/testing-input-output -name "*_snapshot.png" | head -n 1)
+          SPATIAL_IMG=$(find data/testing-input-output -name "*_spatial_location_map.png" | head -n 1)
+          PHYSICAL_IMG=$(find data/testing-input-output -name "*_physical_boundary_map.png" | head -n 1)
+
+          if [ -z "$SNAPSHOT_IMG" ]; then
+            echo "CONSTITUTION VIOLATION: Missing artifact matching '*_snapshot.png'. Execution halted." >&2
+            exit 1
+          fi
+          if [ -z "$SPATIAL_IMG" ]; then
+            echo "CONSTITUTION VIOLATION: Missing artifact matching '*_spatial_location_map.png'. Execution halted." >&2
+            exit 1
+          fi
+          if [ -z "$PHYSICAL_IMG" ]; then
+            echo "CONSTITUTION VIOLATION: Missing artifact matching '*_physical_boundary_map.png'. Execution halted." >&2
+            exit 1
+          fi
+
+          ls -l "$SNAPSHOT_IMG" "$SPATIAL_IMG" "$PHYSICAL_IMG"
           
           # Print output summary for logs tracing
           head -n 30 data/testing-input-output/cfd_compiler_output.json
