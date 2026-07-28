@@ -16,9 +16,10 @@ class DummyOrchestratorSuccess:
     def run(self, container):
         container.status = "success"
         class BC:
-            location = "wall"
-            type = "no-slip"
-            values = {}
+            def __init__(self):
+                self.location = "wall"
+                self.type = "no-slip"
+                self.values = {}
         container.boundary_conditions = [BC()]
 
 
