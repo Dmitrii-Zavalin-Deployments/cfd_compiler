@@ -309,9 +309,8 @@ def test_render_physical_boundary_map_missing_noslip_keyerror(tmp_path, monkeypa
     bad_map.pop("no-slip", None)
     monkeypatch.setattr(renderer_module, "PHYSICAL_COLOR_MAP", bad_map)
     
-    with pytest.raises(KeyError, match="no-slip"):
+    with pytest.raises(KeyError, match="CONSTITUTION VIOLATION: Missing boundary type definition for location 'y_min'. Execution halted."):
         render_physical_boundary_map(output_path, bounds, location_to_type, location_to_values)
-
 
 def test_draw_domain_geometry_missing_edge_face_keyerror():
     """Tests KeyError when an edge's face color definition is missing in _draw_domain_geometry (Line 285)."""
