@@ -295,7 +295,7 @@ def _parse_step_file(step_file_path: Path | str | None) -> tuple[np.ndarray | No
                 if DEBUG_MODE:
                     logger.debug("Added standalone CIRCLE entity #%s (R=%f)", c_id, radius)
 
-    # 8. Parse CYLINDRICAL_SURFACE entities
+    # 8. Parse CYLINDRICAL_SURFACE entities with projected bounds calculation
     cyl_pattern = re.compile(
         r"#(\d+)\s*=\s*CYLINDRICAL_SURFACE\s*\(\s*'[^']*'\s*,\s*#(\d+)\s*,\s*([-\d\.E+\-]+)\s*\)",
         re.IGNORECASE
@@ -314,20 +314,22 @@ def _parse_step_file(step_file_path: Path | str | None) -> tuple[np.ndarray | No
 
             if all_points:
                 pts_arr = np.array(all_points)
-                span = np.max(pts_arr, axis=0) - np.min(pts_arr, axis=0)
-                length = float(np.max(span))
+                projections = np.dot(pts_arr - c_orig, axis_vec)
+                t_min = float(np.min(projections))
+                t_max = float(np.max(projections))
             else:
-                length = radius * 2.0
+                t_min = -radius
+                t_max = radius
 
             angles = np.linspace(0, 2 * np.pi, 8, endpoint=False)
             for a in angles:
                 radial_offset = radius * np.cos(a) * u_vec + radius * np.sin(a) * v_vec
-                line_start = c_orig + radial_offset - axis_vec * (length / 2.0)
-                line_end = c_orig + radial_offset + axis_vec * (length / 2.0)
+                line_start = c_orig + radial_offset + axis_vec * t_min
+                line_end = c_orig + radial_offset + axis_vec * t_max
                 curves.append(np.array([line_start, line_end]))
 
             if DEBUG_MODE:
-                logger.debug("Extracted CYLINDRICAL_SURFACE (R=%f, length=%f)", radius, length)
+                logger.debug("Extracted CYLINDRICAL_SURFACE (R=%f, t_range=[%f, %f])", radius, t_min, t_max)
 
     pts_array = np.array(all_points) if all_points else None
     axis_frame["curves"] = curves
@@ -568,14 +570,25 @@ def _draw_alternating_edge(
         )
 
 
+def _apply_bounds_padding(bounds: tuple[float, ...], margin: float = 0.05) -> tuple[float, ...]:
+    """Expands bounding box by a given margin percentage for clear visual separation."""
+    xmin, xmax, ymin, ymax, zmin, zmax = bounds
+    dx = (xmax - xmin) * margin if xmax > xmin else 1.0
+    dy = (ymax - ymin) * margin if ymax > ymin else 1.0
+    dz = (zmax - zmin) * margin if zmax > zmin else 1.0
+    return (xmin - dx, xmax + dx, ymin - dy, ymax + dy, zmin - dz, zmax + dz)
+
+
 def _draw_domain_geometry(
     ax: Any,
     bounds: tuple[float, ...],
     face_color_dict: dict[str, str],
     step_file_path: Path | str | None = None,
+    padding_margin: float = 0.05
 ) -> None:
-    """Renders 3D bounding box faces with faint fills and alternating color 'shtrih' edges strictly without fallbacks."""
-    xmin, xmax, ymin, ymax, zmin, zmax = bounds
+    """Renders 3D domain bounding box faces with padding and alternating color 'shtrih' edges strictly without fallbacks."""
+    padded_bounds = _apply_bounds_padding(bounds, margin=padding_margin)
+    xmin, xmax, ymin, ymax, zmin, zmax = padded_bounds
 
     # Upfront validation of required face keys to strictly enforce test error string contracts
     required_faces = ["x_min", "x_max", "y_min", "y_max", "z_min", "z_max", "wall"]
@@ -586,7 +599,7 @@ def _draw_domain_geometry(
                 f"CONSTITUTION VIOLATION: Missing face color for location '{loc}'. Execution halted."
             )
 
-    # 1. Define the 12 unique cuboid edges
+    # 1. Define the 12 unique cuboid edges using padded bounds
     edges = [
         # Parallel to X-axis (4 edges)
         ((xmin, ymin, zmin), (xmax, ymin, zmin), "y_min", "z_min"),
@@ -610,13 +623,13 @@ def _draw_domain_geometry(
         c2 = face_color_dict[face2]
         _draw_alternating_edge(ax, p1, p2, c1, c2, num_segments=12)
 
-    # 2. Render translucent face fills
+    # 2. Render translucent face fills using padded bounds
     plane_definitions = {
         "x_min": np.array([[xmin, ymin, zmin], [xmin, ymax, zmin], [xmin, ymax, zmax], [xmin, ymin, zmax]]),
         "x_max": np.array([[xmax, ymin, zmin], [xmax, ymax, zmin], [xmax, ymax, zmax], [xmax, ymin, zmax]]),
         "y_min": np.array([[xmin, ymin, zmin], [xmax, ymin, zmin], [xmax, ymin, zmax], [xmin, ymin, zmax]]),
-        "y_max": np.array([[xmin, ymax, zmin], [xmax, ymax, zmin], [xmax, ymax, zmax], [xmin, ymax, zmax]]),
-        "z_min": np.array([[xmin, ymin, zmin], [xmax, ymin, zmin], [xmax, ymax, zmin], [xmin, ymin, zmin]]),
+        "y_max": np.array([[xmin, ymax, zmin], [xmax, ymax, zmin], [xmax, ymax, zmax], [xmin, ymax, zmin]]),
+        "z_min": np.array([[xmin, ymin, zmin], [xmax, ymin, zmin], [xmax, ymin, zmax], [xmin, ymin, zmin]]),
         "z_max": np.array([[xmin, ymin, zmax], [xmax, ymin, zmax], [xmax, ymax, zmax], [xmin, ymin, zmax]]),
     }
 
@@ -652,16 +665,16 @@ def _draw_domain_geometry(
     origin = axis_frame.get("origin")
     if origin is None:
         origin = np.array([
-            (xmin + xmax) / 2.0,
-            (ymin + ymax) / 2.0,
-            (zmin + zmax) / 2.0
+            (bounds[0] + bounds[1]) / 2.0,
+            (bounds[2] + bounds[3]) / 2.0,
+            (bounds[4] + bounds[5]) / 2.0
         ])
 
     x_dir = axis_frame.get("x_axis", np.array([1.0, 0.0, 0.0]))
     y_dir = axis_frame.get("y_axis", np.array([0.0, 1.0, 0.0]))
     z_dir = axis_frame.get("z_axis", np.array([0.0, 0.0, 1.0]))
 
-    box_scale = min(xmax - xmin, ymax - ymin, zmax - zmin) * 0.25
+    box_scale = min(xmax - xmin, ymax - ymin, zmax - zmin) * 0.20
     if box_scale <= 0:
         box_scale = 1.0
 
