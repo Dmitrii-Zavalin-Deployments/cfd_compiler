@@ -48,6 +48,7 @@ def _parse_step_file(step_file_path: Path | None) -> tuple[np.ndarray | None, di
     Parses arbitrary 3D geometry and coordinate axis positions directly from a STEP file:
     1. Extracts 3D coordinates from CARTESIAN_POINT entities for general shape rendering.
     2. Extracts origin and local X, Y, Z axis vectors from AXIS2_PLACEMENT_3D entities.
+    3. Extracts CIRCLE and CYLINDRICAL_SURFACE entities to render internal holes and curved features.
     """
     if not step_file_path:
         return None, {}
@@ -75,8 +76,6 @@ def _parse_step_file(step_file_path: Path | None) -> tuple[np.ndarray | None, di
         point_entities[entity_id] = np.array(coords)
         points.append(coords)
 
-    pts_array = np.array(points) if points else None
-
     # Extract DIRECTION entities
     dir_pattern = re.compile(
         r"#(\d+)\s*=\s*DIRECTION\s*\(\s*'[^']*'\s*,\s*\(\s*([-\d\.E+\-]+)\s*,\s*([-\d\.E+\-]+)\s*,\s*([-\d\.E+\-]+)\s*\)\s*\)",
@@ -86,21 +85,52 @@ def _parse_step_file(step_file_path: Path | None) -> tuple[np.ndarray | None, di
     for match in dir_pattern.finditer(text):
         directions[match.group(1)] = np.array([float(match.group(2)), float(match.group(3)), float(match.group(4))])
 
-    # Extract AXIS2_PLACEMENT_3D frame (Origin + Axis directions)
+    # Extract all AXIS2_PLACEMENT_3D entities (Origin + Axis directions)
     placement_pattern = re.compile(
-        r"AXIS2_PLACEMENT_3D\s*\(\s*'[^']*'\s*,\s*#(\d+)\s*,\s*#(\d+)\s*,\s*#(\d+)\s*\)",
+        r"#(\d+)\s*=\s*AXIS2_PLACEMENT_3D\s*\(\s*'[^']*'\s*,\s*#(\d+)(?:\s*,\s*#(\d+))?(?:\s*,\s*#(\d+))?\s*\)",
         re.IGNORECASE
     )
+    placements: dict[str, dict[str, np.ndarray]] = {}
 
+    for match in placement_pattern.finditer(text):
+        p_id = match.group(1)
+        orig_id = match.group(2)
+        z_id = match.group(3)
+        x_id = match.group(4)
+
+        origin = point_entities.get(orig_id, np.array([0.0, 0.0, 0.0]))
+        z_axis = directions.get(z_id, np.array([0.0, 0.0, 1.0])) if z_id else np.array([0.0, 0.0, 1.0])
+        x_axis = directions.get(x_id, np.array([1.0, 0.0, 0.0])) if x_id else np.array([1.0, 0.0, 0.0])
+
+        z_norm = np.linalg.norm(z_axis)
+        x_norm = np.linalg.norm(x_axis)
+        z_axis = z_axis / z_norm if z_norm > 1e-6 else np.array([0.0, 0.0, 1.0])
+        x_axis = x_axis / x_norm if x_norm > 1e-6 else np.array([1.0, 0.0, 0.0])
+
+        y_axis = np.cross(z_axis, x_axis)
+        y_norm = np.linalg.norm(y_axis)
+        y_axis = y_axis / y_norm if y_norm > 1e-6 else np.array([0.0, 1.0, 0.0])
+
+        placements[p_id] = {
+            "origin": origin,
+            "x_axis": x_axis,
+            "y_axis": y_axis,
+            "z_axis": z_axis,
+        }
+
+    # Primary axis frame selection (for coordinate triad rendering)
     axis_frame: dict[str, Any] = {}
-    m_place = placement_pattern.search(text)
+    m_place = re.search(
+        r"AXIS2_PLACEMENT_3D\s*\(\s*'[^']*'\s*,\s*#(\d+)\s*,\s*#(\d+)\s*,\s*#(\d+)\s*\)",
+        text,
+        re.IGNORECASE
+    )
     if m_place:
         origin_id, z_dir_id, x_dir_id = m_place.group(1), m_place.group(2), m_place.group(3)
         origin = point_entities.get(origin_id, np.array([0.0, 0.0, 0.0]))
         z_axis = directions.get(z_dir_id, np.array([0.0, 0.0, 1.0]))
         x_axis = directions.get(x_dir_id, np.array([1.0, 0.0, 0.0]))
 
-        # Normalize direction vectors
         x_norm = np.linalg.norm(x_axis)
         z_norm = np.linalg.norm(z_axis)
         x_axis = x_axis / x_norm if x_norm > 1e-6 else np.array([1.0, 0.0, 0.0])
@@ -116,6 +146,56 @@ def _parse_step_file(step_file_path: Path | None) -> tuple[np.ndarray | None, di
             "y_axis": y_axis,
             "z_axis": z_axis,
         }
+
+    curves: list[np.ndarray] = []
+
+    # Extract CIRCLE entities to render hole perimeters
+    circle_pattern = re.compile(
+        r"#(\d+)\s*=\s*CIRCLE\s*\(\s*'[^']*'\s*,\s*#(\d+)\s*,\s*([-\d\.E+\-]+)\s*\)",
+        re.IGNORECASE
+    )
+    for match in circle_pattern.finditer(text):
+        placement_id = match.group(2)
+        radius = float(match.group(3))
+        if placement_id in placements:
+            frame = placements[placement_id]
+            c_orig = frame["origin"]
+            u_vec = frame["x_axis"]
+            v_vec = frame["y_axis"]
+
+            angles = np.linspace(0, 2 * np.pi, 64)
+            circle_pts = np.array([
+                c_orig + radius * np.cos(a) * u_vec + radius * np.sin(a) * v_vec
+                for a in angles
+            ])
+            curves.append(circle_pts)
+            points.extend(circle_pts.tolist())
+
+    # Extract CYLINDRICAL_SURFACE entities to render hole boundary lines
+    cyl_pattern = re.compile(
+        r"#(\d+)\s*=\s*CYLINDRICAL_SURFACE\s*\(\s*'[^']*'\s*,\s*#(\d+)\s*,\s*([-\d\.E+\-]+)\s*\)",
+        re.IGNORECASE
+    )
+    for match in cyl_pattern.finditer(text):
+        placement_id = match.group(2)
+        radius = float(match.group(3))
+        if placement_id in placements:
+            frame = placements[placement_id]
+            c_orig = frame["origin"]
+            axis_vec = frame["z_axis"]
+            u_vec = frame["x_axis"]
+            v_vec = frame["y_axis"]
+
+            angles = np.linspace(0, 2 * np.pi, 8, endpoint=False)
+            length = radius * 2.0
+            for a in angles:
+                radial_offset = radius * np.cos(a) * u_vec + radius * np.sin(a) * v_vec
+                line_start = c_orig + radial_offset - axis_vec * (length / 2.0)
+                line_end = c_orig + radial_offset + axis_vec * (length / 2.0)
+                curves.append(np.array([line_start, line_end]))
+
+    pts_array = np.array(points) if points else None
+    axis_frame["curves"] = curves
 
     return pts_array, axis_frame
 
@@ -381,6 +461,18 @@ def _draw_domain_geometry(
     # 3. Dynamic arbitrary STEP object geometry & local X, Y, Z frame rendering
     pts_array, axis_frame = _parse_step_file(step_file_path)
     wall_color = face_color_dict["wall"]
+
+    # Render extracted curves (circles, cylindrical boundaries, hole edges)
+    curves = axis_frame.get("curves", [])
+    for curve_pts in curves:
+        ax.plot3D(
+            curve_pts[:, 0],
+            curve_pts[:, 1],
+            curve_pts[:, 2],
+            color=wall_color,
+            linewidth=2.0,
+            alpha=0.9
+        )
 
     if pts_array is not None and len(pts_array) > 0:
         # Subsample high-density point clouds for responsive rendering performance
