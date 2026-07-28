@@ -111,7 +111,7 @@ def test_main_output_schema_validation_failure(tmp_path: Path, monkeypatch: pyte
     input_file = workspace / "input.json"
     input_file.write_text(json.dumps({
         "step_file_path": str(step_file),
-        "boundary_condition_mapping": {"wall": "no-slip"}
+        "boundary_condition_mapping": [{"location": "wall", "type": "no-slip"}]
     }))
 
     monkeypatch.setattr(sys, "argv", [
@@ -127,10 +127,13 @@ def test_main_output_schema_validation_failure(tmp_path: Path, monkeypatch: pyte
             self.bounding_box = [0.0, 0.0, 0.0, 1.0, 1.0, 1.0]
             self.compiled_cells_count = 100
             self.artifacts_generated = []
+
             class BC:
-                location = "wall"
-                type = "no-slip"
-                values = {}
+                def __init__(self):
+                    self.location = "wall"
+                    self.type = "no-slip"
+                    self.values = {}
+
             self.boundary_conditions = [BC()]
 
     monkeypatch.setattr(main_module, "SovereignContainer", DummyContainer)
