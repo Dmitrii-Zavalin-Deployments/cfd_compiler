@@ -490,7 +490,7 @@ def render_physical_boundary_map(
             ax.quiver(
                 cx, cy, cz,
                 u * scale, v * scale, w * scale,
-                color="#0000FF", linewidth=3.0, arrow_length_ratio=0.35
+                color="#0000FF", linewidth=3.0, arrow_length_ratio=0.35, zorder=6
             )
 
     ax.set_title("3D Visual QA - Physical Boundary Map", fontsize=12, fontweight="bold")
@@ -548,7 +548,9 @@ def _draw_alternating_edge(
     p2: tuple[float, float, float],
     color1: str,
     color2: str,
-    num_segments: int = 12
+    num_segments: int = 12,
+    linewidth: float = 3.0,
+    zorder: int = 5
 ) -> None:
     """Renders a shared edge as an alternating multi-color dashed segment ('shtrih')."""
     p1_arr = np.array(p1)
@@ -565,13 +567,14 @@ def _draw_alternating_edge(
             [seg_start[1], seg_end[1]],
             [seg_start[2], seg_end[2]],
             color=color,
-            linewidth=3.0,
-            alpha=1.0
+            linewidth=linewidth,
+            alpha=1.0,
+            zorder=zorder
         )
 
 
-def _apply_bounds_padding(bounds: tuple[float, ...], margin: float = 0.05) -> tuple[float, ...]:
-    """Expands bounding box by a given margin percentage for clear visual separation."""
+def _apply_bounds_padding(bounds: tuple[float, ...], margin: float = 0.0) -> tuple[float, ...]:
+    """Expands bounding box by a given margin percentage for visual separation."""
     xmin, xmax, ymin, ymax, zmin, zmax = bounds
     dx = (xmax - xmin) * margin if xmax > xmin else 1.0
     dy = (ymax - ymin) * margin if ymax > ymin else 1.0
@@ -584,9 +587,9 @@ def _draw_domain_geometry(
     bounds: tuple[float, ...],
     face_color_dict: dict[str, str],
     step_file_path: Path | str | None = None,
-    padding_margin: float = 0.05
+    padding_margin: float = 0.0
 ) -> None:
-    """Renders 3D domain bounding box faces with padding and alternating color 'shtrih' edges strictly without fallbacks."""
+    """Renders 3D domain bounding box faces and alternating color 'shtrih' edges with priority layering."""
     padded_bounds = _apply_bounds_padding(bounds, margin=padding_margin)
     xmin, xmax, ymin, ymax, zmin, zmax = padded_bounds
 
@@ -599,7 +602,47 @@ def _draw_domain_geometry(
                 f"CONSTITUTION VIOLATION: Missing face color for location '{loc}'. Execution halted."
             )
 
-    # 1. Define the 12 unique cuboid edges using padded bounds
+    # 1. Dynamic STEP object geometry rendering (Render CAD lines FIRST with lower zorder)
+    pts_array, axis_frame = _parse_step_file(step_file_path)
+    wall_color = face_color_dict["wall"]
+
+    curves = axis_frame.get("curves", [])
+    if DEBUG_MODE:
+        logger.debug("Plotting %d CAD geometry curves on 3D canvas", len(curves))
+
+    for curve_pts in curves:
+        ax.plot3D(
+            curve_pts[:, 0],
+            curve_pts[:, 1],
+            curve_pts[:, 2],
+            color=wall_color,
+            linewidth=2.0,
+            alpha=0.85,
+            zorder=2
+        )
+
+    # 2. Render translucent face fills
+    plane_definitions = {
+        "x_min": np.array([[xmin, ymin, zmin], [xmin, ymax, zmin], [xmin, ymax, zmax], [xmin, ymin, zmax]]),
+        "x_max": np.array([[xmax, ymin, zmin], [xmax, ymax, zmin], [xmax, ymax, zmax], [xmax, ymin, zmax]]),
+        "y_min": np.array([[xmin, ymin, zmin], [xmax, ymin, zmin], [xmax, ymin, zmax], [xmin, ymin, zmax]]),
+        "y_max": np.array([[xmin, ymax, zmin], [xmax, ymax, zmin], [xmax, ymax, zmax], [xmin, ymax, zmin]]),
+        "z_min": np.array([[xmin, ymin, zmin], [xmax, ymin, zmin], [xmax, ymin, zmax], [xmin, ymin, zmin]]),
+        "z_max": np.array([[xmin, ymin, zmax], [xmax, ymin, zmax], [xmax, ymax, zmax], [xmin, ymin, zmax]]),
+    }
+
+    for loc, verts in plane_definitions.items():
+        color = face_color_dict[loc]
+        poly = Poly3DCollection(
+            [verts],
+            alpha=0.10,
+            facecolor=color,
+            edgecolor="none",
+            zorder=1
+        )
+        ax.add_collection3d(poly)
+
+    # 3. Define and draw the 12 unique cuboid edges SECOND (High zorder overrides overlapping model lines)
     edges = [
         # Parallel to X-axis (4 edges)
         ((xmin, ymin, zmin), (xmax, ymin, zmin), "y_min", "z_min"),
@@ -621,45 +664,7 @@ def _draw_domain_geometry(
     for p1, p2, face1, face2 in edges:
         c1 = face_color_dict[face1]
         c2 = face_color_dict[face2]
-        _draw_alternating_edge(ax, p1, p2, c1, c2, num_segments=12)
-
-    # 2. Render translucent face fills using padded bounds
-    plane_definitions = {
-        "x_min": np.array([[xmin, ymin, zmin], [xmin, ymax, zmin], [xmin, ymax, zmax], [xmin, ymin, zmax]]),
-        "x_max": np.array([[xmax, ymin, zmin], [xmax, ymax, zmin], [xmax, ymax, zmax], [xmax, ymin, zmax]]),
-        "y_min": np.array([[xmin, ymin, zmin], [xmax, ymin, zmin], [xmax, ymin, zmax], [xmin, ymin, zmax]]),
-        "y_max": np.array([[xmin, ymax, zmin], [xmax, ymax, zmin], [xmax, ymax, zmax], [xmin, ymax, zmin]]),
-        "z_min": np.array([[xmin, ymin, zmin], [xmax, ymin, zmin], [xmax, ymin, zmax], [xmin, ymin, zmin]]),
-        "z_max": np.array([[xmin, ymin, zmax], [xmax, ymin, zmax], [xmax, ymax, zmax], [xmin, ymin, zmax]]),
-    }
-
-    for loc, verts in plane_definitions.items():
-        color = face_color_dict[loc]
-        poly = Poly3DCollection(
-            [verts],
-            alpha=0.10,
-            facecolor=color,
-            edgecolor="none"
-        )
-        ax.add_collection3d(poly)
-
-    # 3. Dynamic STEP object geometry rendering
-    pts_array, axis_frame = _parse_step_file(step_file_path)
-    wall_color = face_color_dict["wall"]
-
-    curves = axis_frame.get("curves", [])
-    if DEBUG_MODE:
-        logger.debug("Plotting %d CAD geometry curves on 3D canvas", len(curves))
-
-    for curve_pts in curves:
-        ax.plot3D(
-            curve_pts[:, 0],
-            curve_pts[:, 1],
-            curve_pts[:, 2],
-            color=wall_color,
-            linewidth=2.5,
-            alpha=0.95
-        )
+        _draw_alternating_edge(ax, p1, p2, c1, c2, num_segments=12, linewidth=3.0, zorder=5)
 
     # Render local coordinate triad extracted from STEP file or domain centroid
     origin = axis_frame.get("origin")
@@ -681,17 +686,17 @@ def _draw_domain_geometry(
     ax.quiver(
         origin[0], origin[1], origin[2],
         x_dir[0] * box_scale, x_dir[1] * box_scale, x_dir[2] * box_scale,
-        color="#FF0000", linewidth=2.5, arrow_length_ratio=0.3
+        color="#FF0000", linewidth=2.5, arrow_length_ratio=0.3, zorder=6
     )
     ax.quiver(
         origin[0], origin[1], origin[2],
         y_dir[0] * box_scale, y_dir[1] * box_scale, y_dir[2] * box_scale,
-        color="#00CC44", linewidth=2.5, arrow_length_ratio=0.3
+        color="#00CC44", linewidth=2.5, arrow_length_ratio=0.3, zorder=6
     )
     ax.quiver(
         origin[0], origin[1], origin[2],
         z_dir[0] * box_scale, z_dir[1] * box_scale, z_dir[2] * box_scale,
-        color="#0066FF", linewidth=2.5, arrow_length_ratio=0.3
+        color="#0066FF", linewidth=2.5, arrow_length_ratio=0.3, zorder=6
     )
 
     ax.set_xlim([xmin, xmax])
