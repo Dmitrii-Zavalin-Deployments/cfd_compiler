@@ -38,11 +38,15 @@ class RenderingStep(StepInterface):
                 "CONSTITUTION VIOLATION: 'boundary_conditions' is uninitialized. BoundaryConditionsStep must run before RenderingStep. Execution halted."
             )
 
-        workspace_dir = Path(container.step_file_path).parent.resolve()
+        step_path = Path(container.step_file_path)
+        workspace_dir = step_path.parent.resolve()
+        step_stem = step_path.stem
+
+        # Derive unique artifact names using the STEP file stem to align with QA maps (e.g., _3 suffix)
         artifacts = [
-            "step_snapshot.png",
-            "spatial_location_map.png",
-            "physical_boundary_map.png"
+            f"{step_stem}_snapshot.png",
+            f"{step_stem}_spatial_location_map.png",
+            f"{step_stem}_physical_boundary_map.png"
         ]
 
         # Reconstruct mapping dicts for physical rendering with strict attribute checks
