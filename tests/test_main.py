@@ -1,8 +1,9 @@
 import json
 import sys
 from pathlib import Path
-import pytest
+
 import jsonschema
+import pytest
 
 import src.main as main_module
 
