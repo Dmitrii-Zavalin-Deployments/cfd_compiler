@@ -8,21 +8,18 @@ import pytest
 import src.main as main_module
 
 
-class DummyContainerSuccess:
-    """Mock container simulating successful pipeline execution."""
-    def __init__(self, **kwargs):
-        self.status = "success"
-        self.bounding_box = [0.0, 0.0, 0.0, 1.0, 1.0, 1.0]
-        self.compiled_cells_count = 100
-        self.artifacts_generated = []
+class DummyOrchestratorSuccess:
+    """Mock orchestrator that simulates a successful pipeline run."""
+    def __init__(self, steps):
+        pass
 
+    def run(self, container):
+        container.status = "success"
         class BC:
-            def __init__(self):
-                self.location = "wall"
-                self.type = "no-slip"
-                self.values = {}
-
-        self.boundary_conditions = [BC()]
+            location = "wall"
+            type = "no-slip"
+            values = {}
+        container.boundary_conditions = [BC()]
 
 
 def test_main_output_schema_validation_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
@@ -55,8 +52,11 @@ def test_main_output_schema_validation_failure(tmp_path: Path, monkeypatch: pyte
         "--input_file_name", "input.json",
         "--output_file_name", "output.json"
     ])
-    monkeypatch.setattr(main_module, "SovereignContainer", DummyContainerSuccess)
+    
+    # Mock orchestrator to prevent early exit during pipeline execution
+    monkeypatch.setattr(main_module, "Orchestrator", DummyOrchestratorSuccess)
 
+    # Allow config/input validation to pass, but raise ValidationError for output schema
     def mock_validate(data, schema_path):
         if "output" in str(schema_path):
             raise jsonschema.exceptions.ValidationError("Output schema invalid")
@@ -93,7 +93,7 @@ def test_main_output_file_write_failure(tmp_path: Path, monkeypatch: pytest.Monk
 
     monkeypatch.setattr(main_module, "__file__", str(tmp_path / "src" / "main.py"))
 
-    # Point output to a directory so opening it for writing raises an IsADirectoryError/IOError
+    # Point output to an existing directory so opening it for writing raises IsADirectoryError
     invalid_output_dir = workspace / "output_dir"
     invalid_output_dir.mkdir()
 
@@ -103,7 +103,9 @@ def test_main_output_file_write_failure(tmp_path: Path, monkeypatch: pytest.Monk
         "--input_file_name", "input.json",
         "--output_file_name", "output_dir"
     ])
-    monkeypatch.setattr(main_module, "SovereignContainer", DummyContainerSuccess)
+    
+    # Mock orchestrator to prevent early exit during pipeline execution
+    monkeypatch.setattr(main_module, "Orchestrator", DummyOrchestratorSuccess)
     monkeypatch.setattr(main_module, "validate_json", lambda data, path: None)
 
     with pytest.raises(SystemExit) as exc_info:
