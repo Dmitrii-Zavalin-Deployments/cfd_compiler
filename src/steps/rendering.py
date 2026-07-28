@@ -68,13 +68,15 @@ class RenderingStep(StepInterface):
         # Generate Raw STEP Snapshot
         render_step_snapshot(
             output_path=workspace_dir / artifacts[0],
-            bounds=container.bounding_box
+            bounds=container.bounding_box,
+            step_file_path=container.step_file_path
         )
 
         # Generate Spatial Map
         render_spatial_location_map(
             output_path=workspace_dir / artifacts[1],
-            bounds=container.bounding_box
+            bounds=container.bounding_box,
+            step_file_path=container.step_file_path
         )
 
         # Generate Physical Map
@@ -82,7 +84,8 @@ class RenderingStep(StepInterface):
             output_path=workspace_dir / artifacts[2],
             bounds=container.bounding_box,
             location_to_type=location_to_type,
-            location_to_values=location_to_values
+            location_to_values=location_to_values,
+            step_file_path=container.step_file_path
         )
 
         container.artifacts_generated = artifacts
