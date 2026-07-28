@@ -254,7 +254,7 @@ def test_draw_domain_geometry_missing_wall_color_raises() -> None:
 
     logger.info("Verifying KeyError on missing 'wall' face color")
     with pytest.raises(
-        KeyError, match="CONSTITUTION VIOLATION: Missing face color for 'wall'"
+        KeyError, match="CONSTITUTION VIOLATION: Missing face color for location 'wall'. Execution halted."
     ):
         _draw_domain_geometry(ax, TEST_BOUNDS, colors_without_wall)
 
@@ -329,7 +329,7 @@ def test_draw_domain_geometry_missing_edge_face_keyerror():
         "wall": "#2C3E50"
     }
     
-    with pytest.raises(KeyError, match="Missing color definition for edge faces"):
+    with pytest.raises(KeyError, match="Missing face color for location"):
         _draw_domain_geometry(ax, bounds, incomplete_color_map)
         
     plt.close(fig)
