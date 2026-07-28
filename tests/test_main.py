@@ -4,20 +4,20 @@ Ensures 100% statement and branch coverage across all execution paths,
 schema validations, error traps, and strict No-Default policy checks.
 """
 
-import sys
 import json
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
-import pytest
 import jsonschema
+import pytest
 from jsonschema import ValidationError
 
+from src import main as main_module
 from src.main import main, validate_json
 from tests.conftest import dummy_in, dummy_out
-from src import main as main_module
 
 # --- MOCK DATA STRUCTURES ---
 
@@ -775,7 +775,6 @@ def test_main_config_schema_generic_exception(tmp_path, monkeypatch):
     def mock_validate(data, schema_path):
         if "config" in str(schema_path):
             raise RuntimeError("Unexpected non-validation error")
-        return None
         
     monkeypatch.setattr(main_module, "validate_json", mock_validate)
     
@@ -837,7 +836,6 @@ def test_main_input_schema_validation_failure(tmp_path, monkeypatch):
     def mock_validate(data, schema_path):
         if "input" in str(schema_path):
             raise jsonschema.exceptions.ValidationError("Input schema violation")
-        return None
         
     monkeypatch.setattr(main_module, "validate_json", mock_validate)
     
@@ -883,7 +881,6 @@ def test_main_output_schema_validation_failure(tmp_path, monkeypatch):
     def mock_validate(data, schema_path):
         if "output" in str(schema_path):
             raise jsonschema.exceptions.ValidationError("Output schema violation")
-        return None
         
     monkeypatch.setattr(main_module, "validate_json", mock_validate)
     
