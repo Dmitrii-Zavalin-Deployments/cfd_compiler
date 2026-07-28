@@ -1,3 +1,4 @@
+import logging
 import re
 from pathlib import Path
 from typing import Any
@@ -10,6 +11,38 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 # Force non-interactive Agg backend for headless rendering
 matplotlib.use("Agg")
+
+# ==============================================================================
+# LOGGING & OPERATIONAL MODE CONFIGURATION
+# ==============================================================================
+
+logger = logging.getLogger("step_visualizer")
+if not logger.handlers:
+    _handler = logging.StreamHandler()
+    _formatter = logging.Formatter(
+        "[%(asctime)s] [%(levelname)s] [STEP_RENDERER] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S"
+    )
+    _handler.setFormatter(_formatter)
+    logger.addHandler(_handler)
+
+# Global Mode Toggle: Set to True for detailed geometry debugging, False for Production
+DEBUG_MODE: bool = True
+
+
+def set_debug_mode(enabled: bool = True) -> None:
+    """Dynamically toggles Debug Mode (verbose geometry logs) and Production Mode (sanitized logs)."""
+    global DEBUG_MODE
+    DEBUG_MODE = enabled
+    logger.setLevel(logging.DEBUG if enabled else logging.INFO)
+
+
+# Initialize default log level based on mode
+set_debug_mode(DEBUG_MODE)
+
+# ==============================================================================
+# COLOR PALETTES
+# ==============================================================================
 
 # Color palette for Raw STEP Geometry Preview
 CAD_COLOR_MAP = {
@@ -51,15 +84,22 @@ def _parse_step_file(step_file_path: Path | str | None) -> tuple[np.ndarray | No
     3. Generates 3D curve paths for visual QA rendering.
     """
     if not step_file_path:
+        logger.info("No STEP file path provided. Skipping CAD parsing.")
         return None, {}
 
     path = Path(step_file_path)
     if not path.exists():
+        logger.warning("STEP file not found at path: %s", path if DEBUG_MODE else path.name)
         return None, {}
 
     try:
         text = path.read_text(encoding="utf-8", errors="ignore")
-    except (OSError, UnicodeDecodeError):
+        if DEBUG_MODE:
+            logger.debug("Successfully read STEP file '%s' (%d bytes)", path, len(text))
+        else:
+            logger.info("Loaded STEP file for processing.")
+    except (OSError, UnicodeDecodeError) as exc:
+        logger.error("Failed to read STEP file: %s", exc)
         return None, {}
 
     # 1. Parse CARTESIAN_POINT entities
@@ -76,6 +116,9 @@ def _parse_step_file(step_file_path: Path | str | None) -> tuple[np.ndarray | No
         cartesian_points[p_id] = np.array(coords)
         all_points.append(coords)
 
+    if DEBUG_MODE:
+        logger.debug("Extracted %d CARTESIAN_POINT entities", len(cartesian_points))
+
     # 2. Parse VERTEX_POINT entities
     vertex_pattern = re.compile(
         r"#(\d+)\s*=\s*VERTEX_POINT\s*\(\s*'[^']*'\s*,\s*#(\d+)\s*\)",
@@ -88,6 +131,9 @@ def _parse_step_file(step_file_path: Path | str | None) -> tuple[np.ndarray | No
         if pt_id in cartesian_points:
             vertices[v_id] = cartesian_points[pt_id]
 
+    if DEBUG_MODE:
+        logger.debug("Extracted %d VERTEX_POINT entities", len(vertices))
+
     # 3. Parse DIRECTION entities
     dir_pattern = re.compile(
         r"#(\d+)\s*=\s*DIRECTION\s*\(\s*'[^']*'\s*,\s*\(\s*([-\d\.E+\-]+)\s*,\s*([-\d\.E+\-]+)\s*,\s*([-\d\.E+\-]+)\s*\)\s*\)",
@@ -97,6 +143,9 @@ def _parse_step_file(step_file_path: Path | str | None) -> tuple[np.ndarray | No
     for match in dir_pattern.finditer(text):
         d_id = match.group(1)
         directions[d_id] = np.array([float(match.group(2)), float(match.group(3)), float(match.group(4))])
+
+    if DEBUG_MODE:
+        logger.debug("Extracted %d DIRECTION entities", len(directions))
 
     # 4. Parse AXIS2_PLACEMENT_3D entities
     placement_pattern = re.compile(
@@ -131,6 +180,9 @@ def _parse_step_file(step_file_path: Path | str | None) -> tuple[np.ndarray | No
             "z_axis": z_axis,
         }
 
+    if DEBUG_MODE:
+        logger.debug("Extracted %d AXIS2_PLACEMENT_3D entities", len(placements))
+
     # Primary axis frame selection
     axis_frame: dict[str, Any] = {}
     m_place = re.search(
@@ -159,6 +211,8 @@ def _parse_step_file(step_file_path: Path | str | None) -> tuple[np.ndarray | No
             "y_axis": y_axis,
             "z_axis": z_axis,
         }
+        if DEBUG_MODE:
+            logger.debug("Selected primary AXIS2_PLACEMENT_3D frame at origin=%s", origin.tolist())
 
     # 5. Parse CIRCLE entities
     circle_pattern = re.compile(
@@ -172,6 +226,9 @@ def _parse_step_file(step_file_path: Path | str | None) -> tuple[np.ndarray | No
         radius = float(match.group(3))
         circles[c_id] = {"placement_id": p_id, "radius": radius}
 
+    if DEBUG_MODE:
+        logger.debug("Extracted %d CIRCLE entities", len(circles))
+
     curves: list[np.ndarray] = []
 
     # 6. Parse EDGE_CURVE entities to connect CAD boundary lines
@@ -179,7 +236,9 @@ def _parse_step_file(step_file_path: Path | str | None) -> tuple[np.ndarray | No
         r"#(\d+)\s*=\s*EDGE_CURVE\s*\(\s*'[^']*'\s*,\s*#(\d+)\s*,\s*#(\d+)\s*,\s*#(\d+)\s*,\s*\.(T|F)\.\s*\)",
         re.IGNORECASE
     )
+    edge_count = 0
     for match in edge_pattern.finditer(text):
+        edge_count += 1
         v1_id = match.group(2)
         v2_id = match.group(3)
         geom_id = match.group(4)
@@ -203,9 +262,14 @@ def _parse_step_file(step_file_path: Path | str | None) -> tuple[np.ndarray | No
                     for a in angles
                 ])
                 curves.append(circle_pts)
+                if DEBUG_MODE:
+                    logger.debug("Added CIRCLE edge curve (R=%f, Center=%s)", radius, c_orig.tolist())
         elif v1_pt is not None and v2_pt is not None:
             # Straight topological CAD edge line segment
             curves.append(np.array([v1_pt, v2_pt]))
+
+    if DEBUG_MODE:
+        logger.debug("Processed %d EDGE_CURVE entities", edge_count)
 
     # 7. Fallback processing for standalone CIRCLE entities
     for c_id, c_info in circles.items():
@@ -228,13 +292,17 @@ def _parse_step_file(step_file_path: Path | str | None) -> tuple[np.ndarray | No
             )
             if not already_added:
                 curves.append(circle_pts)
+                if DEBUG_MODE:
+                    logger.debug("Added standalone CIRCLE entity #%s (R=%f)", c_id, radius)
 
     # 8. Parse CYLINDRICAL_SURFACE entities
     cyl_pattern = re.compile(
         r"#(\d+)\s*=\s*CYLINDRICAL_SURFACE\s*\(\s*'[^']*'\s*,\s*#(\d+)\s*,\s*([-\d\.E+\-]+)\s*\)",
         re.IGNORECASE
     )
+    cyl_count = 0
     for match in cyl_pattern.finditer(text):
+        cyl_count += 1
         placement_id = match.group(2)
         radius = float(match.group(3))
         if placement_id in placements:
@@ -258,8 +326,20 @@ def _parse_step_file(step_file_path: Path | str | None) -> tuple[np.ndarray | No
                 line_end = c_orig + radial_offset + axis_vec * (length / 2.0)
                 curves.append(np.array([line_start, line_end]))
 
+            if DEBUG_MODE:
+                logger.debug("Extracted CYLINDRICAL_SURFACE (R=%f, length=%f)", radius, length)
+
     pts_array = np.array(all_points) if all_points else None
     axis_frame["curves"] = curves
+
+    if DEBUG_MODE:
+        if pts_array is not None:
+            min_pt = np.min(pts_array, axis=0).round(2).tolist()
+            max_pt = np.max(pts_array, axis=0).round(2).tolist()
+            logger.debug("Extracted %d points. Extents: min=%s, max=%s", len(pts_array), min_pt, max_pt)
+        logger.debug("Total extracted CAD curves for rendering: %d", len(curves))
+    else:
+        logger.info("Parsed CAD geometry successfully.")
 
     return pts_array, axis_frame
 
@@ -270,6 +350,11 @@ def render_step_snapshot(
     step_file_path: Path | str | None = None
 ) -> None:
     """Renders raw STEP geometry preview matching the exact 3D orientation of the pipeline maps."""
+    if DEBUG_MODE:
+        logger.debug("Rendering STEP Snapshot -> output_path='%s', bounds=%s", output_path, bounds)
+    else:
+        logger.info("Rendering STEP Snapshot to %s", output_path.name)
+
     fig = plt.figure(figsize=(10, 7))
     ax = fig.add_subplot(111, projection="3d")
 
@@ -296,6 +381,7 @@ def render_step_snapshot(
     plt.tight_layout()
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
+    logger.info("Successfully exported STEP Snapshot image.")
 
 
 def render_spatial_location_map(
@@ -304,6 +390,11 @@ def render_spatial_location_map(
     step_file_path: Path | str | None = None
 ) -> None:
     """Renders Spatial Location Map with alternating multi-color 'shtrih' shared edges and low-alpha fill (Model 1)."""
+    if DEBUG_MODE:
+        logger.debug("Rendering Spatial Location Map -> output_path='%s', bounds=%s", output_path, bounds)
+    else:
+        logger.info("Rendering Spatial Location Map to %s", output_path.name)
+
     fig = plt.figure(figsize=(10, 7))
     ax = fig.add_subplot(111, projection="3d")
 
@@ -331,6 +422,7 @@ def render_spatial_location_map(
     plt.tight_layout()
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
+    logger.info("Successfully exported Spatial Location Map image.")
 
 
 def render_physical_boundary_map(
@@ -344,6 +436,13 @@ def render_physical_boundary_map(
     Renders Physical Boundary Map with dynamic velocity vectors & legend (Model 2).
     Strict No-Default Policy: raises immediate KeyError on missing boundary locations, unknown types, or missing velocity values.
     """
+    if DEBUG_MODE:
+        logger.debug("Rendering Physical Boundary Map -> output_path='%s'", output_path)
+        logger.debug("Location to Type map: %s", location_to_type)
+        logger.debug("Location to Values map: %s", location_to_values)
+    else:
+        logger.info("Rendering Physical Boundary Map to %s", output_path.name)
+
     fig = plt.figure(figsize=(10, 7))
     ax = fig.add_subplot(111, projection="3d")
 
@@ -351,11 +450,13 @@ def render_physical_boundary_map(
     face_colors = {}
     for loc in required_locations:
         if loc not in location_to_type:
+            logger.error("CONSTITUTION VIOLATION: Missing boundary type for '%s'", loc)
             raise KeyError(
                 f"CONSTITUTION VIOLATION: Missing boundary type definition for location '{loc}'. Execution halted."
             )
         btype = location_to_type[loc]
         if btype not in PHYSICAL_COLOR_MAP:
+            logger.error("CONSTITUTION VIOLATION: Unknown boundary type '%s' for '%s'", btype, loc)
             raise KeyError(
                 f"CONSTITUTION VIOLATION: Unknown boundary type '{btype}' for location '{loc}'. Execution halted."
             )
@@ -368,6 +469,7 @@ def render_physical_boundary_map(
         if btype == "inflow" and loc in location_to_values:
             vals = location_to_values[loc]
             if "u" not in vals or "v" not in vals or "w" not in vals:
+                logger.error("CONSTITUTION VIOLATION: Missing velocity vector components at '%s'", loc)
                 raise KeyError(
                     f"CONSTITUTION VIOLATION: Inflow boundary condition at '{loc}' missing required velocity components (u, v, w). Execution halted."
                 )
@@ -379,6 +481,9 @@ def render_physical_boundary_map(
             cx, cy, cz = _get_face_centroid(loc, bounds)
             vel_mag = np.sqrt(u**2 + v**2 + w**2)
             scale = 400.0 if vel_mag > 0 else 1.0
+
+            if DEBUG_MODE:
+                logger.debug("Overlaying inflow quiver vector at centroid (%f, %f, %f) with velocity magnitude %f", cx, cy, cz, vel_mag)
 
             ax.quiver(
                 cx, cy, cz,
@@ -408,6 +513,7 @@ def render_physical_boundary_map(
     plt.tight_layout()
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
+    logger.info("Successfully exported Physical Boundary Map image.")
 
 
 def _get_face_centroid(loc: str, bounds: tuple[float, ...]) -> tuple[float, float, float]:
@@ -426,6 +532,7 @@ def _get_face_centroid(loc: str, bounds: tuple[float, ...]) -> tuple[float, floa
     }
 
     if loc not in centroids:
+        logger.error("CONSTITUTION VIOLATION: Invalid face centroid requested for '%s'", loc)
         raise KeyError(
             f"CONSTITUTION VIOLATION: Invalid location '{loc}' requested for face centroid. Execution halted."
         )
@@ -474,6 +581,7 @@ def _draw_domain_geometry(
     required_faces = ["x_min", "x_max", "y_min", "y_max", "z_min", "z_max", "wall"]
     for loc in required_faces:
         if loc not in face_color_dict:
+            logger.error("CONSTITUTION VIOLATION: Missing face color for '%s'", loc)
             raise KeyError(
                 f"CONSTITUTION VIOLATION: Missing face color for location '{loc}'. Execution halted."
             )
@@ -527,6 +635,9 @@ def _draw_domain_geometry(
     wall_color = face_color_dict["wall"]
 
     curves = axis_frame.get("curves", [])
+    if DEBUG_MODE:
+        logger.debug("Plotting %d CAD geometry curves on 3D canvas", len(curves))
+
     for curve_pts in curves:
         ax.plot3D(
             curve_pts[:, 0],
