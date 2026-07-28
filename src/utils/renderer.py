@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 from typing import Any
 
@@ -42,12 +43,93 @@ PHYSICAL_COLOR_MAP = {
 }
 
 
-def render_step_snapshot(output_path: Path, bounds: tuple[float, ...]) -> None:
+def _parse_step_file(step_file_path: Path | None) -> tuple[np.ndarray | None, dict[str, Any]]:
+    """
+    Parses arbitrary 3D geometry and coordinate axis positions directly from a STEP file:
+    1. Extracts 3D coordinates from CARTESIAN_POINT entities for general shape rendering.
+    2. Extracts origin and local X, Y, Z axis vectors from AXIS2_PLACEMENT_3D entities.
+    """
+    if not step_file_path:
+        return None, {}
+
+    path = Path(step_file_path)
+    if not path.exists():
+        return None, {}
+
+    try:
+        text = path.read_text(encoding="utf-8", errors="ignore")
+    except Exception:
+        return None, {}
+
+    # Extract all CARTESIAN_POINT entities for arbitrary shape point cloud rendering
+    point_entity_pattern = re.compile(
+        r"#(\d+)\s*=\s*CARTESIAN_POINT\s*\(\s*'[^']*'\s*,\s*\(\s*([-\d\.E+\-]+)\s*,\s*([-\d\.E+\-]+)\s*,\s*([-\d\.E+\-]+)\s*\)\s*\)",
+        re.IGNORECASE
+    )
+    point_entities: dict[str, np.ndarray] = {}
+    points: list[list[float]] = []
+
+    for match in point_entity_pattern.finditer(text):
+        entity_id = match.group(1)
+        coords = [float(match.group(2)), float(match.group(3)), float(match.group(4))]
+        point_entities[entity_id] = np.array(coords)
+        points.append(coords)
+
+    pts_array = np.array(points) if points else None
+
+    # Extract DIRECTION entities
+    dir_pattern = re.compile(
+        r"#(\d+)\s*=\s*DIRECTION\s*\(\s*'[^']*'\s*,\s*\(\s*([-\d\.E+\-]+)\s*,\s*([-\d\.E+\-]+)\s*,\s*([-\d\.E+\-]+)\s*\)\s*\)",
+        re.IGNORECASE
+    )
+    directions: dict[str, np.ndarray] = {}
+    for match in dir_pattern.finditer(text):
+        directions[match.group(1)] = np.array([float(match.group(2)), float(match.group(3)), float(match.group(4))])
+
+    # Extract AXIS2_PLACEMENT_3D frame (Origin + Axis directions)
+    placement_pattern = re.compile(
+        r"AXIS2_PLACEMENT_3D\s*\(\s*'[^']*'\s*,\s*#(\d+)\s*,\s*#(\d+)\s*,\s*#(\d+)\s*\)",
+        re.IGNORECASE
+    )
+
+    axis_frame: dict[str, Any] = {}
+    m_place = placement_pattern.search(text)
+    if m_place:
+        origin_id, z_dir_id, x_dir_id = m_place.group(1), m_place.group(2), m_place.group(3)
+        origin = point_entities.get(origin_id, np.array([0.0, 0.0, 0.0]))
+        z_axis = directions.get(z_dir_id, np.array([0.0, 0.0, 1.0]))
+        x_axis = directions.get(x_dir_id, np.array([1.0, 0.0, 0.0]))
+
+        # Normalize direction vectors
+        x_norm = np.linalg.norm(x_axis)
+        z_norm = np.linalg.norm(z_axis)
+        x_axis = x_axis / x_norm if x_norm > 1e-6 else np.array([1.0, 0.0, 0.0])
+        z_axis = z_axis / z_norm if z_norm > 1e-6 else np.array([0.0, 0.0, 1.0])
+
+        y_axis = np.cross(z_axis, x_axis)
+        y_norm = np.linalg.norm(y_axis)
+        y_axis = y_axis / y_norm if y_norm > 1e-6 else np.array([0.0, 1.0, 0.0])
+
+        axis_frame = {
+            "origin": origin,
+            "x_axis": x_axis,
+            "y_axis": y_axis,
+            "z_axis": z_axis,
+        }
+
+    return pts_array, axis_frame
+
+
+def render_step_snapshot(
+    output_path: Path, 
+    bounds: tuple[float, ...], 
+    step_file_path: Path | None = None
+) -> None:
     """Renders raw STEP geometry preview matching the exact 3D orientation of the pipeline maps."""
     fig = plt.figure(figsize=(10, 7))
     ax = fig.add_subplot(111, projection="3d")
 
-    _draw_domain_geometry(ax, bounds, face_color_dict=CAD_COLOR_MAP)
+    _draw_domain_geometry(ax, bounds, face_color_dict=CAD_COLOR_MAP, step_file_path=step_file_path)
 
     ax.set_title("3D Visual QA - Raw STEP Geometry", fontsize=12, fontweight="bold")
     ax.set_xlabel("X (mm)")
@@ -72,12 +154,16 @@ def render_step_snapshot(output_path: Path, bounds: tuple[float, ...]) -> None:
     plt.close(fig)
 
 
-def render_spatial_location_map(output_path: Path, bounds: tuple[float, ...]) -> None:
+def render_spatial_location_map(
+    output_path: Path, 
+    bounds: tuple[float, ...], 
+    step_file_path: Path | None = None
+) -> None:
     """Renders Spatial Location Map with alternating multi-color 'shtrih' shared edges and low-alpha fill (Model 1)."""
     fig = plt.figure(figsize=(10, 7))
     ax = fig.add_subplot(111, projection="3d")
 
-    _draw_domain_geometry(ax, bounds, face_color_dict=SPATIAL_COLOR_MAP)
+    _draw_domain_geometry(ax, bounds, face_color_dict=SPATIAL_COLOR_MAP, step_file_path=step_file_path)
 
     ax.set_title("3D Visual QA - Spatial Location Map", fontsize=12, fontweight="bold")
     ax.set_xlabel("X (mm)")
@@ -107,7 +193,8 @@ def render_physical_boundary_map(
     output_path: Path,
     bounds: tuple[float, ...],
     location_to_type: dict[str, str],
-    location_to_values: dict[str, dict[str, float]]
+    location_to_values: dict[str, dict[str, float]],
+    step_file_path: Path | None = None
 ) -> None:
     """
     Renders Physical Boundary Map with dynamic velocity vectors & legend (Model 2).
@@ -130,7 +217,7 @@ def render_physical_boundary_map(
             )
         face_colors[loc] = PHYSICAL_COLOR_MAP[btype]
 
-    _draw_domain_geometry(ax, bounds, face_color_dict=face_colors)
+    _draw_domain_geometry(ax, bounds, face_color_dict=face_colors, step_file_path=step_file_path)
 
     # Dynamic 3D velocity vector overlay for inflow
     for loc, btype in location_to_type.items():
@@ -234,6 +321,7 @@ def _draw_domain_geometry(
     ax: Any,
     bounds: tuple[float, ...],
     face_color_dict: dict[str, str],
+    step_file_path: Path | None = None,
 ) -> None:
     """Renders 3D bounding box faces with faint fills and alternating color 'shtrih' edges strictly without fallbacks."""
     xmin, xmax, ymin, ymax, zmin, zmax = bounds
@@ -257,7 +345,7 @@ def _draw_domain_geometry(
         ((xmin, ymin, zmin), (xmin, ymax, zmin), "x_min", "z_min"),
         ((xmax, ymin, zmin), (xmax, ymax, zmin), "x_max", "z_min"),
         ((xmin, ymin, zmax), (xmin, ymax, zmax), "x_min", "z_max"),
-        ((xmax, ymin, zmax), (xmax, ymax, zmax), "x_max", "z_max"),
+        ((xmax, ymax, zmax), (xmax, ymax, zmax), "x_max", "z_max"),
         # Parallel to Z-axis (4 edges)
         ((xmin, ymin, zmin), (xmin, ymin, zmax), "x_min", "y_min"),
         ((xmax, ymin, zmin), (xmax, ymin, zmax), "x_max", "y_min"),
@@ -290,29 +378,61 @@ def _draw_domain_geometry(
         )
         ax.add_collection3d(poly)
 
-    # 3. Dynamic derivation of internal cylinder geometry from domain bounds
-    span_x = xmax - xmin
-    span_z = zmax - zmin
-    radius = min(span_x, span_z) * 0.375
-
-    cyl_center_x = (xmin + xmax) / 2.0
-    cyl_center_z = (zmin + zmax) / 2.0
-
-    y_coords = np.linspace(ymin, ymax, 25)
-    theta = np.linspace(0, 2 * np.pi, 40)
-    theta_grid, y_grid = np.meshgrid(theta, y_coords)
-
-    x_grid = cyl_center_x + radius * np.cos(theta_grid)
-    z_grid = cyl_center_z + radius * np.sin(theta_grid)
-
+    # 3. Dynamic arbitrary STEP object geometry & local X, Y, Z frame rendering
+    pts_array, axis_frame = _parse_step_file(step_file_path)
     wall_color = face_color_dict["wall"]
 
-    ax.plot_surface(
-        x_grid, y_grid, z_grid,
-        color=wall_color,
-        alpha=0.75,
-        shade=True,
-        edgecolor="none"
+    if pts_array is not None and len(pts_array) > 0:
+        # Subsample high-density point clouds for responsive rendering performance
+        if len(pts_array) > 1200:
+            indices = np.random.choice(len(pts_array), 1200, replace=False)
+            sampled_pts = pts_array[indices]
+        else:
+            sampled_pts = pts_array
+
+        ax.scatter(
+            sampled_pts[:, 0],
+            sampled_pts[:, 1],
+            sampled_pts[:, 2],
+            c=wall_color,
+            alpha=0.65,
+            s=12,
+            depthshade=True,
+            edgecolors="none"
+        )
+
+    # Render local X, Y, Z coordinate triad extracted from STEP file (or domain centroid)
+    origin = axis_frame.get("origin")
+    if origin is None:
+        origin = np.array([
+            (xmin + xmax) / 2.0,
+            (ymin + ymax) / 2.0,
+            (zmin + zmax) / 2.0
+        ])
+
+    x_dir = axis_frame.get("x_axis", np.array([1.0, 0.0, 0.0]))
+    y_dir = axis_frame.get("y_axis", np.array([0.0, 1.0, 0.0]))
+    z_dir = axis_frame.get("z_axis", np.array([0.0, 0.0, 1.0]))
+
+    box_scale = min(xmax - xmin, ymax - ymin, zmax - zmin) * 0.25
+    if box_scale <= 0:
+        box_scale = 1.0
+
+    # Draw coordinate vectors: Red = X-axis, Green = Y-axis, Blue = Z-axis
+    ax.quiver(
+        origin[0], origin[1], origin[2],
+        x_dir[0] * box_scale, x_dir[1] * box_scale, x_dir[2] * box_scale,
+        color="#FF0000", linewidth=2.5, arrow_length_ratio=0.3
+    )
+    ax.quiver(
+        origin[0], origin[1], origin[2],
+        y_dir[0] * box_scale, y_dir[1] * box_scale, y_dir[2] * box_scale,
+        color="#00CC44", linewidth=2.5, arrow_length_ratio=0.3
+    )
+    ax.quiver(
+        origin[0], origin[1], origin[2],
+        z_dir[0] * box_scale, z_dir[1] * box_scale, z_dir[2] * box_scale,
+        color="#0066FF", linewidth=2.5, arrow_length_ratio=0.3
     )
 
     ax.set_xlim([xmin, xmax])
