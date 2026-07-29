@@ -5,7 +5,6 @@ Achieves 100% branch and line coverage for boundary and spatial map rendering.
 
 from pathlib import Path
 from unittest.mock import patch
-
 import pytest
 
 from src.utils.renderer.maps import (
@@ -26,11 +25,35 @@ def test_render_step_snapshot(tmp_path: Path) -> None:
         assert mock_close.called
 
 
+def test_render_step_snapshot_debug_false(tmp_path: Path) -> None:
+    output_path = tmp_path / "snapshot_debug_false.png"
+    bounds = (0.0, 10.0, 0.0, 10.0, 0.0, 10.0)
+    
+    with patch("src.utils.renderer.maps.DEBUG_MODE", False), \
+         patch("matplotlib.pyplot.savefig") as mock_savefig, \
+         patch("matplotlib.pyplot.close") as mock_close:
+        render_step_snapshot(output_path, bounds, step_file_path=None)
+        assert mock_savefig.called
+        assert mock_close.called
+
+
 def test_render_spatial_location_map(tmp_path: Path) -> None:
     output_path = tmp_path / "spatial.png"
     bounds = (0.0, 10.0, 0.0, 10.0, 0.0, 10.0)
     
     with patch("matplotlib.pyplot.savefig") as mock_savefig, \
+         patch("matplotlib.pyplot.close") as mock_close:
+        render_spatial_location_map(output_path, bounds)
+        assert mock_savefig.called
+        assert mock_close.called
+
+
+def test_render_spatial_location_map_debug_false(tmp_path: Path) -> None:
+    output_path = tmp_path / "spatial_debug_false.png"
+    bounds = (0.0, 10.0, 0.0, 10.0, 0.0, 10.0)
+    
+    with patch("src.utils.renderer.maps.DEBUG_MODE", False), \
+         patch("matplotlib.pyplot.savefig") as mock_savefig, \
          patch("matplotlib.pyplot.close") as mock_close:
         render_spatial_location_map(output_path, bounds)
         assert mock_savefig.called
@@ -55,6 +78,30 @@ def test_render_physical_boundary_map_success(tmp_path: Path) -> None:
     }
 
     with patch("matplotlib.pyplot.savefig") as mock_savefig, \
+         patch("matplotlib.pyplot.close") as mock_close:
+        render_physical_boundary_map(output_path, bounds, location_to_type, location_to_values)
+        assert mock_savefig.called
+        assert mock_close.called
+
+
+def test_render_physical_boundary_map_debug_false(tmp_path: Path) -> None:
+    output_path = tmp_path / "physical_debug_false.png"
+    bounds = (0.0, 10.0, 0.0, 10.0, 0.0, 10.0)
+    location_to_type = {
+        "x_min": "inflow",
+        "x_max": "outflow",
+        "y_min": "outflow",
+        "y_max": "outflow",
+        "z_min": "outflow",
+        "z_max": "outflow",
+        "wall": "outflow",
+    }
+    location_to_values = {
+        "x_min": {"u": 1.0, "v": 0.0, "w": 0.0},
+    }
+
+    with patch("src.utils.renderer.maps.DEBUG_MODE", False), \
+         patch("matplotlib.pyplot.savefig") as mock_savefig, \
          patch("matplotlib.pyplot.close") as mock_close:
         render_physical_boundary_map(output_path, bounds, location_to_type, location_to_values)
         assert mock_savefig.called
