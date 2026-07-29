@@ -40,19 +40,23 @@ def test_render_spatial_location_map(tmp_path: Path) -> None:
 def test_render_physical_boundary_map_success(tmp_path: Path) -> None:
     output_path = tmp_path / "physical.png"
     bounds = (0.0, 10.0, 0.0, 10.0, 0.0, 10.0)
-    boundary_conditions = [
-        {"location": "x_min", "type": "inflow", "values": {"u": 1.0, "v": 0.0, "w": 0.0}},
-        {"location": "x_max", "type": "outflow", "values": {}},
-        {"location": "y_min", "type": "inflow", "values": {"u": 0.0, "v": 1.0, "w": 0.0}},
-        {"location": "y_max", "type": "outflow", "values": {}},
-        {"location": "z_min", "type": "outflow", "values": {}},
-        {"location": "z_max", "type": "outflow", "values": {}},
-        {"location": "wall", "type": "outflow", "values": {}},
-    ]
+    location_to_type = {
+        "x_min": "inflow",
+        "x_max": "outflow",
+        "y_min": "inflow",
+        "y_max": "outflow",
+        "z_min": "outflow",
+        "z_max": "outflow",
+        "wall": "outflow",
+    }
+    location_to_values = {
+        "x_min": {"u": 1.0, "v": 0.0, "w": 0.0},
+        "y_min": {"u": 0.0, "v": 1.0, "w": 0.0},
+    }
 
     with patch("matplotlib.pyplot.savefig") as mock_savefig, \
          patch("matplotlib.pyplot.close") as mock_close:
-        render_physical_boundary_map(output_path, bounds, boundary_conditions)
+        render_physical_boundary_map(output_path, bounds, location_to_type, location_to_values)
         assert mock_savefig.called
         assert mock_close.called
 
@@ -60,48 +64,53 @@ def test_render_physical_boundary_map_success(tmp_path: Path) -> None:
 def test_render_physical_boundary_map_missing_location(tmp_path: Path) -> None:
     output_path = tmp_path / "physical.png"
     bounds = (0.0, 10.0, 0.0, 10.0, 0.0, 10.0)
-    boundary_conditions = [
-        {"location": "x_max", "type": "outflow", "values": {}},
-        {"location": "y_min", "type": "outflow", "values": {}},
-        {"location": "y_max", "type": "outflow", "values": {}},
-        {"location": "z_min", "type": "outflow", "values": {}},
-        {"location": "z_max", "type": "outflow", "values": {}},
-        {"location": "wall", "type": "outflow", "values": {}},
-    ]
+    location_to_type = {
+        "x_max": "outflow",
+        "y_min": "outflow",
+        "y_max": "outflow",
+        "z_min": "outflow",
+        "z_max": "outflow",
+        "wall": "outflow",
+    }
+    location_to_values = {}
 
     with pytest.raises(KeyError, match="Missing boundary type definition for location 'x_min'"):
-        render_physical_boundary_map(output_path, bounds, boundary_conditions)
+        render_physical_boundary_map(output_path, bounds, location_to_type, location_to_values)
 
 
 def test_render_physical_boundary_map_unknown_type(tmp_path: Path) -> None:
     output_path = tmp_path / "physical.png"
     bounds = (0.0, 10.0, 0.0, 10.0, 0.0, 10.0)
-    boundary_conditions = [
-        {"location": "x_min", "type": "invalid_type", "values": {}},
-        {"location": "x_max", "type": "outflow", "values": {}},
-        {"location": "y_min", "type": "outflow", "values": {}},
-        {"location": "y_max", "type": "outflow", "values": {}},
-        {"location": "z_min", "type": "outflow", "values": {}},
-        {"location": "z_max", "type": "outflow", "values": {}},
-        {"location": "wall", "type": "outflow", "values": {}},
-    ]
+    location_to_type = {
+        "x_min": "invalid_type",
+        "x_max": "outflow",
+        "y_min": "outflow",
+        "y_max": "outflow",
+        "z_min": "outflow",
+        "z_max": "outflow",
+        "wall": "outflow",
+    }
+    location_to_values = {}
 
     with pytest.raises(KeyError, match="Unknown boundary type 'invalid_type' for location 'x_min'"):
-        render_physical_boundary_map(output_path, bounds, boundary_conditions)
+        render_physical_boundary_map(output_path, bounds, location_to_type, location_to_values)
 
 
 def test_render_physical_boundary_map_missing_velocity_components(tmp_path: Path) -> None:
     output_path = tmp_path / "physical.png"
     bounds = (0.0, 10.0, 0.0, 10.0, 0.0, 10.0)
-    boundary_conditions = [
-        {"location": "x_min", "type": "inflow", "values": {}},
-        {"location": "x_max", "type": "outflow", "values": {}},
-        {"location": "y_min", "type": "outflow", "values": {}},
-        {"location": "y_max", "type": "outflow", "values": {}},
-        {"location": "z_min", "type": "outflow", "values": {}},
-        {"location": "z_max", "type": "outflow", "values": {}},
-        {"location": "wall", "type": "outflow", "values": {}},
-    ]
+    location_to_type = {
+        "x_min": "inflow",
+        "x_max": "outflow",
+        "y_min": "outflow",
+        "y_max": "outflow",
+        "z_min": "outflow",
+        "z_max": "outflow",
+        "wall": "outflow",
+    }
+    location_to_values = {
+        "x_min": {},
+    }
 
     with pytest.raises(KeyError, match=r"missing required velocity components \(u, v, w\)"):
-        render_physical_boundary_map(output_path, bounds, boundary_conditions)
+        render_physical_boundary_map(output_path, bounds, location_to_type, location_to_values)
