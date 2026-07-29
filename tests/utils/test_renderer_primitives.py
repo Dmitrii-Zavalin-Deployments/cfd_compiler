@@ -5,16 +5,17 @@ Achieves 100% branch and line coverage for rendering primitive functions.
 
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
 import numpy as np
 import pytest
 
+import src.utils.renderer.primitives as primitives_module
 from src.utils.renderer.primitives import (
     apply_bounds_padding,
     draw_alternating_edge,
     draw_domain_geometry,
     get_face_centroid,
 )
-import src.utils.renderer.primitives as primitives_module
 
 
 def test_get_face_centroid_success() -> None:

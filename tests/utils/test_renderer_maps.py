@@ -5,14 +5,15 @@ Achieves 100% branch and line coverage for rendering map functions.
 
 from pathlib import Path
 from unittest.mock import patch
+
 import pytest
 
+import src.utils.renderer.maps as maps_module
 from src.utils.renderer.maps import (
     render_physical_boundary_map,
     render_spatial_location_map,
     render_step_snapshot,
 )
-import src.utils.renderer.maps as maps_module
 
 
 def test_render_step_snapshot(tmp_path: Path) -> None:

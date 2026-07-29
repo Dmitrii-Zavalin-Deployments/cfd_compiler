@@ -5,11 +5,9 @@ Achieves 100% branch and line coverage for STEP file parsing and geometry extrac
 
 from pathlib import Path
 from unittest.mock import patch
-import numpy as np
-import pytest
 
-from src.utils.renderer.step_parser import parse_step_file
 import src.utils.renderer.step_parser as step_parser_module
+from src.utils.renderer.step_parser import parse_step_file
 
 
 def test_parse_step_file_none_or_empty() -> None:
