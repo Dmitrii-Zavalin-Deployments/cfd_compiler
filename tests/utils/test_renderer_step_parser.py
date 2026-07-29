@@ -5,9 +5,11 @@ Achieves 100% branch and line coverage for STEP file parsing and geometry extrac
 
 from pathlib import Path
 from unittest.mock import patch
+import numpy as np
+import pytest
 
-import src.utils.renderer.step_parser as step_parser_module
 from src.utils.renderer.step_parser import parse_step_file
+import src.utils.renderer.step_parser as step_parser_module
 
 
 def test_parse_step_file_none_or_empty() -> None:
@@ -18,11 +20,9 @@ def test_parse_step_file_none_or_empty() -> None:
 def test_parse_step_file_not_exists(tmp_path: Path) -> None:
     non_existent = tmp_path / "non_existent.step"
     
-    # DEBUG_MODE = False
     with patch.object(step_parser_module, "DEBUG_MODE", False):
         assert parse_step_file(non_existent) == (None, {})
 
-    # DEBUG_MODE = True
     with patch.object(step_parser_module, "DEBUG_MODE", True):
         assert parse_step_file(non_existent) == (None, {})
 
@@ -31,11 +31,9 @@ def test_parse_step_file_read_exceptions(tmp_path: Path) -> None:
     dummy_file = tmp_path / "dummy.step"
     dummy_file.write_text("dummy")
 
-    # Test OSError
     with patch.object(Path, "read_text", side_effect=OSError("Disk error")):
         assert parse_step_file(dummy_file) == (None, {})
 
-    # Test UnicodeDecodeError
     with patch.object(Path, "read_text", side_effect=UnicodeDecodeError("utf-8", b"", 0, 1, "invalid")):
         assert parse_step_file(dummy_file) == (None, {})
 
@@ -95,8 +93,6 @@ def test_parse_step_file_comprehensive_geometry(tmp_path: Path) -> None:
 
 
 def test_parse_step_file_fallback_and_no_placement_match(tmp_path: Path) -> None:
-    # No vertex points -> tests topological_points fallback to cartesian_points
-    # Standalone circle without edge curve -> tests unique standalone circle addition (already_added = False)
     step_content = """
     #1 = CARTESIAN_POINT('p1', (1.0, 2.0, 3.0));
     #20 = DIRECTION('z_dir', (0.0, 0.0, 1.0));
@@ -115,11 +111,9 @@ def test_parse_step_file_fallback_and_no_placement_match(tmp_path: Path) -> None
 
 
 def test_parse_step_file_no_topological_points(tmp_path: Path) -> None:
-    # No topological points or cartesian points at all -> tests cylindrical surface t_min/t_max radius fallback
     step_content = """
     #20 = DIRECTION('z_dir', (0.0, 0.0, 1.0));
     #21 = DIRECTION('x_dir', (1.0, 0.0, 0.0));
-    #1 = CARTESIAN_POINT('orig', (0.0, 0.0, 0.0));
     #30 = AXIS2_PLACEMENT_3D('place', #1, #20, #21);
     #60 = CYLINDRICAL_SURFACE('cyl', #30, 10.0);
     """
