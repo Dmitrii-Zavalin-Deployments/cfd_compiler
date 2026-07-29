@@ -7,6 +7,7 @@ from src.utils.renderer.maps import (
 from src.utils.renderer.step_parser import parse_step_file
 
 __all__ = [
+    "PHYSICAL_COLOR_MAP",
     "parse_step_file",
     "render_physical_boundary_map",
     "render_spatial_location_map",
