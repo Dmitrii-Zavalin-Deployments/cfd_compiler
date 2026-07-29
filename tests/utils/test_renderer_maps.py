@@ -5,12 +5,11 @@ Achieves 100% branch and line coverage for boundary and spatial map rendering.
 
 from pathlib import Path
 from unittest.mock import patch
-
 import pytest
 
 from src.utils.renderer.maps import (
     render_physical_boundary_map,
-    render_spatial_coordination_map,
+    render_spatial_location_map,
     render_step_snapshot,
 )
 
@@ -26,13 +25,13 @@ def test_render_step_snapshot(tmp_path: Path) -> None:
         assert mock_close.called
 
 
-def test_render_spatial_coordination_map(tmp_path: Path) -> None:
+def test_render_spatial_location_map(tmp_path: Path) -> None:
     output_path = tmp_path / "spatial.png"
     bounds = (0.0, 10.0, 0.0, 10.0, 0.0, 10.0)
     
     with patch("matplotlib.pyplot.savefig") as mock_savefig, \
          patch("matplotlib.pyplot.close") as mock_close:
-        render_spatial_coordination_map(output_path, bounds)
+        render_spatial_location_map(output_path, bounds)
         assert mock_savefig.called
         assert mock_close.called
 
