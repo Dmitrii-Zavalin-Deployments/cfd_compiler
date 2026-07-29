@@ -5,7 +5,6 @@ from src.utils.renderer.maps import (
     render_step_snapshot,
 )
 from src.utils.renderer.step_parser import parse_step_file
-from src.utils.renderer.config import PHYSICAL_COLOR_MAP
 
 __all__ = [
     "parse_step_file",
