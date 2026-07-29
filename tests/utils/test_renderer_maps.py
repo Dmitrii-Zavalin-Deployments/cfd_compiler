@@ -5,6 +5,7 @@ Achieves 100% branch and line coverage for boundary and spatial map rendering.
 
 from pathlib import Path
 from unittest.mock import patch
+
 import pytest
 
 from src.utils.renderer.maps import (
