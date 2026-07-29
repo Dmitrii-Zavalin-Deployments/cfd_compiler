@@ -93,7 +93,7 @@ def draw_domain_geometry(
             )
 
     # 1. Dynamic STEP object geometry rendering
-    pts_array, axis_frame = parse_step_file(step_file_path)
+    _pts_array, axis_frame = parse_step_file(step_file_path)
     wall_color = face_color_dict["wall"]
 
     curves = axis_frame.get("curves", [])
