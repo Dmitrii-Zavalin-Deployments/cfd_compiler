@@ -1,4 +1,4 @@
-from src.utils.renderer.config import set_debug_mode
+from src.utils.renderer.config import PHYSICAL_COLOR_MAP, set_debug_mode
 from src.utils.renderer.maps import (
     render_physical_boundary_map,
     render_spatial_location_map,
