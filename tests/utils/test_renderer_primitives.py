@@ -120,3 +120,25 @@ def test_draw_domain_geometry_degenerate_and_default_origin() -> None:
         draw_domain_geometry(mock_ax, bounds, face_color_dict)
 
     assert mock_ax.quiver.called
+
+def test_draw_domain_geometry_zero_box_scale(tmp_path: Path) -> None:
+    """Exercises line 171 where box_scale <= 0 defaults to 1.0 due to a zero-thickness dimension."""
+    from unittest.mock import MagicMock, patch
+    from src.utils.renderer.primitives import draw_domain_geometry
+
+    ax = MagicMock()
+    # Zero thickness in the X dimension (xmin == xmax) forces box_scale to 0.0 initially
+    bounds = (5.0, 5.0, 0.0, 10.0, 0.0, 10.0)
+    face_color_dict = {
+        "x_min": "#FF0000",
+        "x_max": "#00FF00",
+        "y_min": "#0000FF",
+        "y_max": "#FFFF00",
+        "z_min": "#FF00FF",
+        "z_max": "#00FFFF",
+        "wall": "#888888",
+    }
+
+    with patch("src.utils.renderer.primitives.parse_step_file", return_value=(None, {})):
+        draw_domain_geometry(ax, bounds, face_color_dict, step_file_path=None)
+        assert ax.quiver.called
