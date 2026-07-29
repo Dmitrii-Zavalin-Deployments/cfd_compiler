@@ -95,14 +95,16 @@ def test_rendering_step_success(
 
     # Validate snapshot renderer call
     mock_render_snapshot.assert_called_once_with(
-        output_path=expected_workspace / "step_snapshot.png",
+        output_path=expected_workspace / "geometry_snapshot.png",
         bounds=valid_container.bounding_box,
+        step_file_path=valid_container.step_file_path,
     )
 
     # Validate spatial map renderer call
     mock_render_spatial.assert_called_once_with(
-        output_path=expected_workspace / "spatial_location_map.png",
+        output_path=expected_workspace / "geometry_spatial_location_map.png",
         bounds=valid_container.bounding_box,
+        step_file_path=valid_container.step_file_path,
     )
 
     # Extract dynamic maps expected from fixture boundary conditions
@@ -115,17 +117,18 @@ def test_rendering_step_success(
 
     # Validate physical map renderer call
     mock_render_physical.assert_called_once_with(
-        output_path=expected_workspace / "physical_boundary_map.png",
+        output_path=expected_workspace / "geometry_physical_boundary_map.png",
         bounds=valid_container.bounding_box,
         location_to_type=expected_location_to_type,
         location_to_values=expected_location_to_values,
+        step_file_path=valid_container.step_file_path,
     )
 
     # Validate container artifacts update
     expected_artifacts = [
-        "step_snapshot.png",
-        "spatial_location_map.png",
-        "physical_boundary_map.png",
+        "geometry_snapshot.png",
+        "geometry_spatial_location_map.png",
+        "geometry_physical_boundary_map.png",
     ]
     assert valid_container.artifacts_generated == expected_artifacts
 
@@ -159,16 +162,21 @@ def test_rendering_step_empty_boundary_conditions(
     rendering_step.execute(valid_container)
 
     mock_render_physical.assert_called_once_with(
-        output_path=Path(valid_container.step_file_path).parent.resolve()
-        / "physical_boundary_map.png",
+        output_path=expected_workspace / "geometry_physical_boundary_map.png",
+        bounds=valid_container.bounding_box,
+        location_to_type=expected_location_to_type,
+        location_to_values=expected_location_to_values,
+        step_file_path=valid_container.step_file_path,
+    )
+        / "geometry_physical_boundary_map.png",
         bounds=valid_container.bounding_box,
         location_to_type={},
         location_to_values={},
     )
     assert valid_container.artifacts_generated == [
-        "step_snapshot.png",
-        "spatial_location_map.png",
-        "physical_boundary_map.png",
+        "geometry_snapshot.png",
+        "geometry_spatial_location_map.png",
+        "geometry_physical_boundary_map.png",
     ]
 
 
