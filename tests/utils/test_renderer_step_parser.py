@@ -109,7 +109,7 @@ def test_parse_step_file_fallback_and_no_placement_match(tmp_path: Path) -> None
     step_file.write_text(step_content)
 
     with patch.object(step_parser_module, "DEBUG_MODE", False):
-        pts_array, axis_frame = parse_step_file(step_file)
+        pts_array, _axis_frame = parse_step_file(step_file)
 
     assert pts_array is not None
 
