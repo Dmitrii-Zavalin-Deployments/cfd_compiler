@@ -122,14 +122,13 @@ def test_draw_domain_geometry_degenerate_and_default_origin() -> None:
     assert mock_ax.quiver.called
 
 def test_draw_domain_geometry_zero_box_scale(tmp_path: Path) -> None:
-    """Exercises line 171 where box_scale <= 0 defaults to 1.0 due to a zero-thickness dimension."""
+    """Exercises line 171 where box_scale <= 0 defaults to 1.0 due to an inverted/negative dimension span."""
     from unittest.mock import MagicMock, patch
-
     from src.utils.renderer.primitives import draw_domain_geometry
 
     ax = MagicMock()
-    # Zero thickness in the X dimension (xmin == xmax) forces box_scale to 0.0 initially
-    bounds = (5.0, 5.0, 0.0, 10.0, 0.0, 10.0)
+    # Inverted X dimension (xmin > xmax) results in a negative span, forcing box_scale <= 0
+    bounds = (10.0, 5.0, 0.0, 10.0, 0.0, 10.0)
     face_color_dict = {
         "x_min": "#FF0000",
         "x_max": "#00FF00",
