@@ -1,9 +1,10 @@
 from pathlib import Path
 from typing import Any
+
 import numpy as np
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
-from src.utils.renderer.config import logger, DEBUG_MODE
+from src.utils.renderer.config import DEBUG_MODE, logger
 from src.utils.renderer.step_parser import parse_step_file
 
 

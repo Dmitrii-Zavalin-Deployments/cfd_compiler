@@ -1,9 +1,10 @@
 import re
 from pathlib import Path
 from typing import Any
+
 import numpy as np
 
-from src.utils.renderer.config import logger, DEBUG_MODE
+from src.utils.renderer.config import DEBUG_MODE, logger
 
 
 def parse_step_file(step_file_path: Path | str | None) -> tuple[np.ndarray | None, dict[str, Any]]:

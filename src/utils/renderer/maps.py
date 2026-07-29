@@ -1,4 +1,5 @@
 from pathlib import Path
+
 import matplotlib
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
@@ -7,11 +8,11 @@ import numpy as np
 matplotlib.use("Agg")
 
 from src.utils.renderer.config import (
-    logger,
-    DEBUG_MODE,
     CAD_COLOR_MAP,
-    SPATIAL_COLOR_MAP,
+    DEBUG_MODE,
     PHYSICAL_COLOR_MAP,
+    SPATIAL_COLOR_MAP,
+    logger,
 )
 from src.utils.renderer.primitives import (
     draw_domain_geometry,
