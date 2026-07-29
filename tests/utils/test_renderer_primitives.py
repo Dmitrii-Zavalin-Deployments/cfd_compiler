@@ -124,6 +124,7 @@ def test_draw_domain_geometry_degenerate_and_default_origin() -> None:
 def test_draw_domain_geometry_zero_box_scale(tmp_path: Path) -> None:
     """Exercises line 171 where box_scale <= 0 defaults to 1.0 due to a zero-thickness dimension."""
     from unittest.mock import MagicMock, patch
+
     from src.utils.renderer.primitives import draw_domain_geometry
 
     ax = MagicMock()
