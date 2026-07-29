@@ -162,16 +162,12 @@ def test_rendering_step_empty_boundary_conditions(
     rendering_step.execute(valid_container)
 
     mock_render_physical.assert_called_once_with(
-        output_path=expected_workspace / "geometry_physical_boundary_map.png",
-        bounds=valid_container.bounding_box,
-        location_to_type=expected_location_to_type,
-        location_to_values=expected_location_to_values,
-        step_file_path=valid_container.step_file_path,
-    )
+        output_path=Path(valid_container.step_file_path).parent.resolve()
         / "geometry_physical_boundary_map.png",
         bounds=valid_container.bounding_box,
         location_to_type={},
         location_to_values={},
+        step_file_path=valid_container.step_file_path,
     )
     assert valid_container.artifacts_generated == [
         "geometry_snapshot.png",
