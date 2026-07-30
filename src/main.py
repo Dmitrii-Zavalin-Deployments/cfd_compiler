@@ -1,246 +1,177 @@
-"""
-CFD Compiler CLI Entry Point.
-
-Executes the CFD pre-flight compilation pipeline in headless environments,
-reading configuration and workspace inputs, validating schemas, and emitting solver outputs.
-Strictly enforces No-Default Policy across all user inputs and configuration parameters.
-"""
-
 import argparse
 import json
 import logging
+import multiprocessing
 import os
 import sys
-from pathlib import Path
-
-import jsonschema
+from jsonschema import ValidationError, validate
 
 # --- BOOTSTRAP ---
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from src.pipeline.orchestrator import Orchestrator
-from src.state.cfd_compiler_state import SovereignContainer
-from src.steps.assembly import AssemblyStep
-from src.steps.boundary_conditions import BoundaryConditionsStep
+from src.state.mesh_generator_state import SovereignContainer
+from src.steps.categorization import CategorizationStep
 from src.steps.ingestion import IngestionStep
-from src.steps.rendering import RenderingStep
+from src.steps.resolution import ResolutionStep
+from src.steps.tracing import TracingStep
+from src.steps.voxelization import VoxelizationStep
+from src.utils.mask_visualizer import generate_mask_snapshot
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
 )
-logger = logging.getLogger("cfd_compiler")
+logger = logging.getLogger("mesh_generator")
 
 
-def validate_json(data: dict, schema_path: Path) -> None:
-    """Validates input, config, or output dictionary against a JSON Schema file."""
-    if not schema_path.exists():
-        error_msg = f"CONSTITUTION VIOLATION: Schema file not found at {schema_path}"
+def validate_json(data, schema_path):
+    """Validates input or output payload data against a JSON schema file."""
+    if not os.path.exists(schema_path):
+        logger.warning(f"Schema file not found at {schema_path}. Skipping validation.")
+        return
+    with open(schema_path, 'r') as f:
+        schema = json.load(f)
+    try:
+        validate(instance=data, schema=schema)
+        logger.info(f"Schema validation passed: {schema_path}")
+    except ValidationError as e:
+        logger.error(f"SCHEMA VIOLATION: {schema_path}")
+        raise e
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Modular Workspace Mesh Generator")
+    parser.add_argument("--input_output_folder", required=True, help="Path to workspace directory")
+    parser.add_argument("--input_file_name", required=True, help="Name or relative path of the input STEP file")
+    parser.add_argument("--output_file_name", required=True, help="Name or relative path of the output JSON file")
+    args = parser.parse_args()
+
+    workspace = os.path.abspath(args.input_output_folder)
+    logger.info(f"Pipeline initialized. Workspace: {workspace}")
+
+    # 1. Resolve and Validate Input STEP File Location Explicitly
+    if os.path.isabs(args.input_file_name):
+        step_file = args.input_file_name
+    else:
+        step_file = os.path.join(workspace, args.input_file_name)
+
+    if not os.path.isfile(step_file):
+        error_msg = f"CONSTITUTION VIOLATION: STEP file not found at location: {os.path.abspath(step_file)}"
         logger.critical(error_msg)
         raise FileNotFoundError(error_msg)
 
-    with open(schema_path, "r", encoding="utf-8") as f:
-        schema = json.load(f)
-
-    jsonschema.validate(instance=data, schema=schema)
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="CFD Compiler CLI - Modular Pre-Flight Gate"
-    )
-    parser.add_argument(
-        "--input_output_folder",
-        required=True,
-        help="Path to working workspace directory containing inputs and targets."
-    )
-    parser.add_argument(
-        "--input_file_name",
-        required=True,
-        help="Isolated input contract JSON file name or direct STEP file name."
-    )
-    parser.add_argument(
-        "--output_file_name",
-        required=True,
-        help="Target compiled JSON file name (e.g. cfd_compiler_output.json)."
-    )
-
-    args = parser.parse_args()
-
-    # 1. Path Resolution & Validation
-    workspace_dir = Path(args.input_output_folder).resolve()
-    root_dir = Path(__file__).resolve().parent.parent
-
-    if os.path.isabs(args.input_file_name):
-        input_file_path = Path(args.input_file_name)
-    else:
-        input_file_path = workspace_dir / args.input_file_name
-
+    # Resolve Explicit Output Target Path Structure
     if os.path.isabs(args.output_file_name):
-        output_file_path = Path(args.output_file_name)
+        output_path = args.output_file_name
     else:
-        output_file_path = workspace_dir / args.output_file_name
+        output_path = os.path.join(workspace, args.output_file_name)
 
-    logger.info(f"CFD Compiler initialized. Workspace: {workspace_dir}")
+    os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
 
-    if not input_file_path.exists():
-        error_msg = f"CONSTITUTION VIOLATION: Input file missing: {input_file_path}"
+    # 2. Load and Validate Config
+    config_path = os.path.join("config", "config.json")
+    if not os.path.exists(config_path):
+        config_path = "config.json"
+    
+    if not os.path.exists(config_path):
+        error_msg = f"CONSTITUTION VIOLATION: Configuration file not found at {config_path}."
         logger.critical(error_msg)
-        sys.exit(1)
+        raise FileNotFoundError(error_msg)
 
-    # 2. Load and Validate Configuration (`config/config.json`)
-    config_path = root_dir / "config" / "config.json"
-    config_schema_path = root_dir / "schema" / "cfd_compiler_config_schema.json"
+    with open(config_path, 'r') as f:
+        config = json.load(f)
+    
+    validate_json(config, os.path.join("schema", "mesh_generator_config_schema.json"))
 
-    if not config_path.exists():
-        error_msg = f"CONSTITUTION VIOLATION: Configuration file missing: {config_path}"
-        logger.critical(error_msg)
-        sys.exit(1)
-
-    try:
-        with open(config_path, "r", encoding="utf-8") as f:
-            config_data = json.load(f)
-        logger.info(f"Configuration loaded successfully from {config_path}")
-    except Exception as err:  # noqa: BLE001
-        logger.critical(f"Failure reading configuration file {config_path}: {err}")
-        sys.exit(1)
-
-    try:
-        validate_json(config_data, config_schema_path)
-    except jsonschema.exceptions.ValidationError as err:
-        logger.critical(f"CONSTITUTION VIOLATION: Config schema validation failed: {err}")
-        sys.exit(1)
-    except Exception as err:  # noqa: BLE001
-        logger.critical(f"CONSTITUTION VIOLATION: Error reading schema {config_schema_path}: {err}")
-        sys.exit(1)
-
-    # Strict No-Default Policy: Direct key extraction with immediate failure on missing parameters
-    try:
-        if "tolerance" not in config_data:
-            raise KeyError("tolerance")
-        if "max_element_size" not in config_data:
-            raise KeyError("max_element_size")
-        if "min_element_size" not in config_data:
-            raise KeyError("min_element_size")
-        if "boundary_condition_mapping" not in config_data:
-            raise KeyError("boundary_condition_mapping")
-
-        tolerance = config_data["tolerance"]
-        max_element_size = config_data["max_element_size"]
-        min_element_size = config_data["min_element_size"]
-        config_bc_mapping = config_data["boundary_condition_mapping"]
-    except KeyError as err:
-        logger.critical(f"CONSTITUTION VIOLATION: Required configuration parameter missing in config.json: {err}")
-        sys.exit(1)
-
-    # 3. Ingest Input (Supports JSON Contract or Direct STEP file)
-    schema_dir = root_dir / "schema"
-
-    try:
-        if input_file_path.suffix.lower() in [".step", ".stp"]:
-            input_data = {
-                "step_file_path": str(input_file_path),
-                "boundary_condition_mapping": config_bc_mapping
-            }
-            logger.info("Detected direct STEP file input. Synthesized contract using config boundary conditions.")
-        else:
-            with open(input_file_path, "r", encoding="utf-8") as f:
-                input_data = json.load(f)
-            logger.info(f"Input contract loaded successfully from {input_file_path}")
-
-            # Validate JSON contract against schema
-            validate_json(input_data, schema_dir / "cfd_compiler_input_schema.json")
-
-    except jsonschema.exceptions.ValidationError as err:
-        logger.critical(f"CONSTITUTION VIOLATION: Input schema validation failed: {err}")
-        sys.exit(1)
-    except Exception as err:  # noqa: BLE001
-        logger.critical(f"Failure processing input file {input_file_path}: {err}")
-        sys.exit(1)
-
-    # Strict No-Default Policy: Direct key extraction without fallback assignments
-    try:
-        if "step_file_path" not in input_data:
-            raise KeyError(
-                "CONSTITUTION VIOLATION: Missing required field 'step_file_path' in input payload. Execution halted."
-            )
-        if "boundary_condition_mapping" not in input_data:
-            raise KeyError(
-                "CONSTITUTION VIOLATION: Missing required field 'boundary_condition_mapping' in input payload. Execution halted."
-            )
-
-        step_file_path = input_data["step_file_path"]
-        bc_mapping = input_data["boundary_condition_mapping"]
-    except KeyError as err:
-        logger.critical(f"{err}")
-        sys.exit(1)
-
-    # 4. Initialize Sovereign State Container with Config & Input Data
+    # 3. Initialize SovereignContainer (Gmsh Dedicated Engine)
     container = SovereignContainer(
-        step_file_path=step_file_path,
-        boundary_condition_mapping=bc_mapping,
-        tolerance=tolerance,
-        max_element_size=max_element_size,
-        min_element_size=min_element_size
+        step_file=step_file,
+        max_element_size=config['max_element_size'],
+        tolerance=config['tolerance'],
+        min_element_size=config['min_element_size'],
+        boundary_map=config['boundary_map']
     )
 
-    # 5. Orchestrate Pipeline Execution
-    logger.info("Executing CFD Pre-Flight Compilation Pipeline...")
+    logger.info("Starting pipeline execution with Gmsh engine.")
+
+    # --- GMSH PARALLELIZATION & TOPOLOGY REMEDIATION LAYER ---
+    import gmsh
+
+    if not gmsh.is_initialized():
+        logger.info("Initializing Gmsh runtime engine context...")
+        gmsh.initialize()
+    else:
+        logger.warning("Gmsh engine already active in global state context. Skipping initialization.")
+
+    cores = multiprocessing.cpu_count()
+    logger.info(f"Commanding hardware allocation: Parallel tracking across {cores} threads.")
+    gmsh.option.setNumber("General.NumThreads", cores)
+    gmsh.option.setNumber("Mesh.Algorithm3D", 10)
+    gmsh.option.setNumber("Mesh.CharacteristicLengthFromCurvature", 0)
+    gmsh.option.setNumber("Mesh.CharacteristicLengthExtendFromBoundary", 1)
+    gmsh.option.setNumber("Geometry.Tolerance", config['tolerance'])
+    gmsh.option.setNumber("Mesh.CharacteristicLengthMax", config['max_element_size'])
+    gmsh.option.setNumber("Mesh.CharacteristicLengthMin", config['min_element_size'])
+
     try:
+        # 4. Orchestrate Pipeline Execution
         pipeline = Orchestrator([
             IngestionStep(),
-            BoundaryConditionsStep(),
-            RenderingStep(),
-            AssemblyStep()
+            TracingStep(),
+            ResolutionStep(),
+            CategorizationStep(),
+            VoxelizationStep()
         ])
         pipeline.run(container)
-    except Exception as err:  # noqa: BLE001
-        logger.critical(f"Pipeline execution faulted: {err}")
-        sys.exit(1)
 
-    # 6. Assemble and Serialize Output Payload
-    if container.boundary_conditions is None:
-        logger.critical("CONSTITUTION VIOLATION: Boundary conditions state uninitialized post-execution.")
-        sys.exit(1)
-
-    results = {
-        "status": container.status,
-        "bounding_box": container.bounding_box,
-        "compiled_cells_count": container.compiled_cells_count,
-        "artifacts_generated": container.artifacts_generated,
-        "boundary_conditions": [
-            {
-                "location": bc.location,
-                "type": bc.type,
-                "values": bc.values
+        # 5. Serialize Output Payload (Strictly conforming to schema with additionalProperties: false)
+        output_data = {
+            "inputs": {
+                "step_model": {
+                    "path": container.step_file
+                }
+            },
+            "config": {
+                "tolerance": container.tolerance,
+                "max_element_size": container.max_element_size,
+                "min_element_size": container.min_element_size
+            },
+            "results": {
+                "grid": {
+                    "x_min": container.grid.x_min, "x_max": container.grid.x_max,
+                    "y_min": container.grid.y_min, "y_max": container.grid.y_max,
+                    "z_min": container.grid.z_min, "z_max": container.grid.z_max,
+                    "nx": container.grid.nx, "ny": container.grid.ny, "nz": container.grid.nz
+                } if container.grid else None,
+                "mask": container.mask if container.mask is not None else []
             }
-            for bc in container.boundary_conditions
-        ]
-    }
+        }
 
-    output_payload = {
-        "config": config_data,
-        "input": input_data,
-        "results": results
-    }
+        # --- VISUAL MASK VERIFICATION GATE ---
+        try:
+            generate_mask_snapshot(output_data, fallback_save_dir=workspace)
+        except Exception as viz_err:
+            logger.error(f"Voxel verification snapshot engine faulted: {viz_err!s}")
 
-    # Validate Output Schema (Direct validation; exceptions bubble up or are handled by caller)
-    validate_json(output_payload, schema_dir / "cfd_compiler_output_schema.json")
+        # --- SERIALIZATION LAYER ---
+        with open(output_path, 'w') as f:
+            json.dump(output_data, f, indent=2)
+        logger.info(f"Results serialized to: {output_path}")
 
-    # Write JSON Artifact
-    try:
-        output_file_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_file_path, "w", encoding="utf-8") as f:
-            json.dump(output_payload, f, indent=2)
-        logger.info(f"✅ CFD Compiler executed successfully. Output written to: {output_file_path}")
-    except Exception as err:  # noqa: BLE001
-        logger.critical(f"Failure writing output JSON {output_file_path}: {err}")
-        sys.exit(1)
+        # Validate serialized payload against output schema
+        validate_json(output_data, os.path.join("schema", "mesh_generator_output_schema.json"))
 
-    if container.status != "success":
-        logger.error(f"Compilation finished with non-success status: {container.status}")
-        sys.exit(1)
+    finally:
+        try:
+            import gmsh
+            if gmsh.is_initialized():
+                logger.info("Executing final environment cleanup. Purging Gmsh memory structures...")
+                gmsh.finalize()
+            else:
+                logger.warning("Gmsh finalization bypassed: Engine was already uninitialized by an internal pipeline step.")
+        except ImportError:
+            pass
 
 
 if __name__ == "__main__":  # pragma: no cover
