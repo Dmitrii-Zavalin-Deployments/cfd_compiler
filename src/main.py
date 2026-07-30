@@ -4,18 +4,20 @@ import logging
 import multiprocessing
 import os
 import sys
+
 from jsonschema import ValidationError, validate
 
 # --- BOOTSTRAP ---
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from src.pipeline.orchestrator import Orchestrator
 from src.state.mesh_generator_state import SovereignContainer
 from src.steps.categorization import CategorizationStep
-from src.steps.ingestion import IngestionStep
 from src.steps.resolution import ResolutionStep
 from src.steps.tracing import TracingStep
 from src.steps.voxelization import VoxelizationStep
 from src.utils.mask_visualizer import generate_mask_snapshot
+
+from src.pipeline.orchestrator import Orchestrator
+from src.steps.ingestion import IngestionStep
 
 # Configure logging
 logging.basicConfig(
