@@ -297,6 +297,11 @@ jobs:
           # Print output summary for logs tracing
           head -n 30 data/testing-input-output/cfd_compiler_output.json
 
+      - name: 🛡 Post-Execution Schema Compliance Audit
+        run: |
+          echo "--- Running Standalone JSON Schema Verification ---"
+          python src/utils/validate_schema.py
+
       - name: 💾 Sync Testing Assets to Repository
         if: always()
         run: |

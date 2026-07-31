@@ -1,6 +1,6 @@
 {
-  "tolerance": 1e-6,
-  "max_element_size": 500.0,
+  "tolerance": 1,
+  "max_element_size": 100.0,
   "min_element_size": 10.0,
   "boundary_condition_mapping": [
     {
