@@ -102,7 +102,7 @@ def main() -> None:
         with open(config_path, "r", encoding="utf-8") as f:
             config_data = json.load(f)
         logger.info(f"Configuration loaded successfully from {config_path}")
-    except Exception as err:  # noqa: BLE001
+    except (OSError, json.JSONDecodeError) as err:
         logger.critical(f"Failure reading configuration file {config_path}: {err}")
         sys.exit(1)
 
@@ -111,7 +111,7 @@ def main() -> None:
     except jsonschema.exceptions.ValidationError as err:
         logger.critical(f"CONSTITUTION VIOLATION: Config schema validation failed: {err}")
         sys.exit(1)
-    except Exception as err:  # noqa: BLE001
+    except (OSError, json.JSONDecodeError, jsonschema.exceptions.SchemaError) as err:
         logger.critical(f"CONSTITUTION VIOLATION: Error reading schema {config_schema_path}: {err}")
         sys.exit(1)
 
@@ -155,7 +155,7 @@ def main() -> None:
     except jsonschema.exceptions.ValidationError as err:
         logger.critical(f"CONSTITUTION VIOLATION: Input schema validation failed: {err}")
         sys.exit(1)
-    except Exception as err:  # noqa: BLE001
+    except (OSError, json.JSONDecodeError, jsonschema.exceptions.SchemaError) as err:
         logger.critical(f"Failure processing input file {input_file_path}: {err}")
         sys.exit(1)
 
@@ -195,7 +195,7 @@ def main() -> None:
             AssemblyStep()
         ])
         pipeline.run(container)
-    except Exception as err:  # noqa: BLE001
+    except (RuntimeError, ValueError, TypeError, KeyError, OSError) as err:
         logger.critical(f"Pipeline execution faulted: {err}")
         sys.exit(1)
 
@@ -234,7 +234,7 @@ def main() -> None:
         with open(output_file_path, "w", encoding="utf-8") as f:
             json.dump(output_payload, f, indent=2)
         logger.info(f"✅ CFD Compiler executed successfully. Output written to: {output_file_path}")
-    except Exception as err:  # noqa: BLE001
+    except (OSError, TypeError, ValueError) as err:
         logger.critical(f"Failure writing output JSON {output_file_path}: {err}")
         sys.exit(1)
 
