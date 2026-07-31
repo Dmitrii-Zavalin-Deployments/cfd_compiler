@@ -1,0 +1,243 @@
+{
+  "config": {
+    "tolerance": 1,
+    "max_element_size": 100.0,
+    "min_element_size": 10.0,
+    "boundary_condition_mapping": [
+      {
+        "location": "x_min",
+        "type": "inflow",
+        "values": {
+          "u": 2.5,
+          "v": 0.0,
+          "w": 0.0,
+          "p": 101325.0
+        }
+      },
+      {
+        "location": "x_max",
+        "type": "outflow",
+        "values": {
+          "u": 0.0,
+          "v": 0.0,
+          "w": 0.0,
+          "p": 100000.0
+        }
+      },
+      {
+        "location": "wall",
+        "type": "no-slip",
+        "values": {
+          "u": 0.0,
+          "v": 0.0,
+          "w": 0.0,
+          "p": 0.0
+        }
+      },
+      {
+        "location": "y_min",
+        "type": "free-slip",
+        "values": {
+          "u": 2.5,
+          "v": 0.0,
+          "w": 0.0,
+          "p": 0.0
+        }
+      },
+      {
+        "location": "y_max",
+        "type": "free-slip",
+        "values": {
+          "u": 2.5,
+          "v": 0.0,
+          "w": 0.0,
+          "p": 0.0
+        }
+      },
+      {
+        "location": "z_min",
+        "type": "free-slip",
+        "values": {
+          "u": 2.5,
+          "v": 0.0,
+          "w": 0.0,
+          "p": 0.0
+        }
+      },
+      {
+        "location": "z_max",
+        "type": "free-slip",
+        "values": {
+          "u": 2.5,
+          "v": 0.0,
+          "w": 0.0,
+          "p": 0.0
+        }
+      }
+    ]
+  },
+  "input": {
+    "step_file_path": "/home/runner/work/cfd_compiler/cfd_compiler/data/testing-input-output/cube_with_a_hole.step",
+    "boundary_condition_mapping": [
+      {
+        "location": "x_min",
+        "type": "inflow",
+        "values": {
+          "u": 2.5,
+          "v": 0.0,
+          "w": 0.0,
+          "p": 101325.0
+        }
+      },
+      {
+        "location": "x_max",
+        "type": "outflow",
+        "values": {
+          "u": 0.0,
+          "v": 0.0,
+          "w": 0.0,
+          "p": 100000.0
+        }
+      },
+      {
+        "location": "wall",
+        "type": "no-slip",
+        "values": {
+          "u": 0.0,
+          "v": 0.0,
+          "w": 0.0,
+          "p": 0.0
+        }
+      },
+      {
+        "location": "y_min",
+        "type": "free-slip",
+        "values": {
+          "u": 2.5,
+          "v": 0.0,
+          "w": 0.0,
+          "p": 0.0
+        }
+      },
+      {
+        "location": "y_max",
+        "type": "free-slip",
+        "values": {
+          "u": 2.5,
+          "v": 0.0,
+          "w": 0.0,
+          "p": 0.0
+        }
+      },
+      {
+        "location": "z_min",
+        "type": "free-slip",
+        "values": {
+          "u": 2.5,
+          "v": 0.0,
+          "w": 0.0,
+          "p": 0.0
+        }
+      },
+      {
+        "location": "z_max",
+        "type": "free-slip",
+        "values": {
+          "u": 2.5,
+          "v": 0.0,
+          "w": 0.0,
+          "p": 0.0
+        }
+      }
+    ]
+  },
+  "results": {
+    "status": "success",
+    "bounding_box": [
+      -2500.0000001000008,
+      2500.0000001000003,
+      -2500.0000001,
+      2500.0000001,
+      -1e-07,
+      5000.0000001
+    ],
+    "compiled_cells_count": 125000,
+    "artifacts_generated": [
+      "cube_with_a_hole_snapshot.png",
+      "cube_with_a_hole_spatial_location_map.png",
+      "cube_with_a_hole_physical_boundary_map.png"
+    ],
+    "boundary_conditions": [
+      {
+        "location": "x_min",
+        "type": "inflow",
+        "values": {
+          "u": 2.5,
+          "v": 0.0,
+          "w": 0.0,
+          "p": 101325.0
+        }
+      },
+      {
+        "location": "x_max",
+        "type": "outflow",
+        "values": {
+          "u": 0.0,
+          "v": 0.0,
+          "w": 0.0,
+          "p": 100000.0
+        }
+      },
+      {
+        "location": "wall",
+        "type": "no-slip",
+        "values": {
+          "u": 0.0,
+          "v": 0.0,
+          "w": 0.0,
+          "p": 0.0
+        }
+      },
+      {
+        "location": "y_min",
+        "type": "free-slip",
+        "values": {
+          "u": 2.5,
+          "v": 0.0,
+          "w": 0.0,
+          "p": 0.0
+        }
+      },
+      {
+        "location": "y_max",
+        "type": "free-slip",
+        "values": {
+          "u": 2.5,
+          "v": 0.0,
+          "w": 0.0,
+          "p": 0.0
+        }
+      },
+      {
+        "location": "z_min",
+        "type": "free-slip",
+        "values": {
+          "u": 2.5,
+          "v": 0.0,
+          "w": 0.0,
+          "p": 0.0
+        }
+      },
+      {
+        "location": "z_max",
+        "type": "free-slip",
+        "values": {
+          "u": 2.5,
+          "v": 0.0,
+          "w": 0.0,
+          "p": 0.0
+        }
+      }
+    ]
+  }
+}
