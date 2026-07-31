@@ -111,7 +111,7 @@ def main() -> None:
     except jsonschema.exceptions.ValidationError as err:
         logger.critical(f"CONSTITUTION VIOLATION: Config schema validation failed: {err}")
         sys.exit(1)
-    except (OSError, json.JSONDecodeError, jsonschema.exceptions.SchemaError) as err:
+    except (OSError, json.JSONDecodeError, jsonschema.exceptions.SchemaError, RuntimeError) as err:
         logger.critical(f"CONSTITUTION VIOLATION: Error reading schema {config_schema_path}: {err}")
         sys.exit(1)
 
@@ -155,7 +155,7 @@ def main() -> None:
     except jsonschema.exceptions.ValidationError as err:
         logger.critical(f"CONSTITUTION VIOLATION: Input schema validation failed: {err}")
         sys.exit(1)
-    except (OSError, json.JSONDecodeError, jsonschema.exceptions.SchemaError) as err:
+    except (OSError, json.JSONDecodeError, jsonschema.exceptions.SchemaError, RuntimeError) as err:
         logger.critical(f"Failure processing input file {input_file_path}: {err}")
         sys.exit(1)
 

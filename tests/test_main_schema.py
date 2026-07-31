@@ -123,6 +123,7 @@ def test_main_output_schema_validation_failure(tmp_path: Path, monkeypatch: pyte
 
     class DummyContainer:
         def __init__(self, **kwargs):
+            self.step_file_path = kwargs.get("step_file_path", "dummy.step")
             self.status = "success"
             self.bounding_box = [0.0, 0.0, 0.0, 1.0, 1.0, 1.0]
             self.compiled_cells_count = 100

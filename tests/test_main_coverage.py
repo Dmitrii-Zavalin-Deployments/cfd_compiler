@@ -10,6 +10,7 @@ import src.main as main_module
 
 class DummyContainerSuccess:
     def __init__(self, **kwargs):
+        self.step_file_path = kwargs.get("step_file_path", "dummy.step")
         self.status = "success"
         self.bounding_box = [0.0, 0.0, 0.0, 1.0, 1.0, 1.0]
         self.compiled_cells_count = 100
